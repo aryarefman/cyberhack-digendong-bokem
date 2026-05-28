@@ -1,0 +1,579 @@
+/* ============================================================
+   FIFO & Expiry Tracker — Figma-Matched Styles
+   Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 14.1, 14.6
+   ============================================================ */
+
+/* Page Container */
+.fifo-page {
+  width: 100%;
+}
+
+/* Content Card — wraps filters, table, and pagination */
+.fifo-content-card {
+  background: var(--color-bg-surface);
+  border: 1px solid rgba(143, 177, 87, 0.2);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(143, 177, 87, 0.05);
+}
+
+/* ---- Table Controls / Filters ---- */
+.fifo-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  background: rgba(242, 247, 237, 0.3);
+  border-bottom: 1px solid rgba(194, 201, 182, 0.2);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.fifo-controls-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.fifo-controls-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* Search Input */
+.fifo-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 256px;
+}
+
+.fifo-search-icon {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.fifo-search-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 var(--space-4) 0 41px;
+  background: var(--color-bg-surface);
+  border: 1px solid rgba(143, 177, 87, 0.3);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--color-text-primary);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.fifo-search-input::placeholder {
+  color: rgba(115, 121, 105, 0.7);
+}
+
+.fifo-search-input:focus {
+  border-color: var(--color-brand-primary);
+}
+
+/* Filter Button */
+.fifo-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 42px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid rgba(143, 177, 87, 0.3);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.fifo-filter-btn:hover {
+  background: rgba(143, 177, 87, 0.08);
+  border-color: rgba(143, 177, 87, 0.5);
+}
+
+/* Zone/Category Selects */
+.fifo-select {
+  height: 42px;
+  max-width: 180px;
+  padding: 0 var(--space-8) 0 var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid rgba(143, 177, 87, 0.3);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23566573' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.fifo-select:focus {
+  border-color: var(--color-brand-primary);
+}
+
+/* Sort Controls */
+.fifo-sort-label {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.fifo-sort-select {
+  height: 32px;
+  padding: 0 var(--space-8) 0 var(--space-2);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--color-status-safe-bg);
+  color: var(--color-brand-primary);
+  border: none;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23366306' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+/* Export Button */
+.fifo-export-btn {
+  height: 42px;
+  padding: 0 var(--space-4);
+  gap: var(--space-2);
+}
+
+/* ---- Table Area ---- */
+.fifo-table-area {
+  min-height: 240px;
+}
+
+.fifo-table-wrapper {
+  overflow-x: auto;
+}
+
+/* Table Header — Figma: rgba(215,246,221,0.3) bg, bold uppercase */
+.fifo-table thead th {
+  background: rgba(215, 246, 221, 0.3);
+  padding: 25px var(--space-4);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 1px solid rgba(194, 201, 182, 0.2);
+  white-space: nowrap;
+}
+
+/* Table Rows */
+.fifo-table tbody td {
+  padding: var(--space-5) var(--space-4);
+  border-bottom: 1px solid rgba(194, 201, 182, 0.1);
+  vertical-align: middle;
+}
+
+/* Row Status Colors — per requirements 7.2 */
+.fifo-row-critical {
+  background: #FDEDEC !important;
+}
+
+.fifo-row-warning {
+  background: #FEF9E7 !important;
+}
+
+.fifo-row-safe {
+  background: transparent !important;
+}
+
+/* ---- Material & Lot Cell ---- */
+.fifo-material-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.fifo-material-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fifo-material-icon-critical {
+  background: #FFDAD6;
+  border: 1px solid rgba(186, 26, 26, 0.2);
+  color: var(--color-status-critical);
+}
+
+.fifo-material-icon-warning {
+  background: #CBEAD2;
+  border: 1px solid rgba(143, 177, 87, 0.3);
+  color: var(--color-text-primary);
+}
+
+.fifo-material-icon-safe {
+  background: #DCFBE3;
+  border: 1px solid rgba(143, 177, 87, 0.2);
+  color: var(--color-brand-primary);
+}
+
+.fifo-material-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.fifo-material-name {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.fifo-material-id {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 16px;
+  margin-top: 1px;
+}
+
+/* ---- Intake Date ---- */
+.fifo-date {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+/* ---- Location Slot Badge ---- */
+.fifo-location {
+  display: inline-flex;
+  align-items: center;
+  background: #D7F6DD;
+  border: 1px solid rgba(143, 177, 87, 0.2);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+/* ---- Status Badges — per requirements 7.3 ---- */
+.fifo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.fifo-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.fifo-badge-critical {
+  background: rgba(255, 218, 214, 0.5);
+  border: 1px solid rgba(186, 26, 26, 0.2);
+  color: #93000A;
+}
+
+.fifo-badge-critical .fifo-badge-dot {
+  background: var(--color-status-critical);
+}
+
+.fifo-badge-warning {
+  background: #F2F7ED;
+  border: 1px solid rgba(115, 121, 105, 0.3);
+  color: var(--color-text-secondary);
+}
+
+.fifo-badge-warning .fifo-badge-dot {
+  background: #0B0B0B;
+}
+
+.fifo-badge-safe {
+  background: rgba(220, 251, 227, 0.2);
+  border: 1px solid rgba(54, 99, 6, 0.2);
+  color: var(--color-brand-primary);
+}
+
+.fifo-badge-safe .fifo-badge-dot {
+  background: #9CD761;
+}
+
+/* ---- Expiry Timeline ---- */
+.fifo-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 180px;
+}
+
+.fifo-timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.fifo-timeline-days-critical {
+  color: var(--color-status-critical);
+}
+
+.fifo-timeline-days-warning {
+  color: var(--color-text-primary);
+}
+
+.fifo-timeline-days-safe {
+  color: var(--color-brand-primary);
+}
+
+.fifo-timeline-label {
+  color: var(--color-text-secondary);
+}
+
+/* Progress Bar */
+.fifo-progress-track {
+  height: 8px;
+  background: #D1F0D8;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.fifo-progress-bar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--transition-normal);
+}
+
+.fifo-progress-critical {
+  background: var(--color-status-critical);
+}
+
+.fifo-progress-warning {
+  background: #030303;
+}
+
+.fifo-progress-safe {
+  background: #A1D670;
+}
+
+/* ---- Loading State ---- */
+.fifo-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: var(--space-4);
+  padding: var(--space-12);
+}
+
+.fifo-loading-content {
+  text-align: center;
+}
+
+.fifo-loading-title {
+  font: var(--text-body-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.fifo-loading-text {
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* ---- Error State ---- */
+.fifo-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+}
+
+.fifo-error-icon {
+  color: var(--color-status-critical);
+}
+
+.fifo-error-title {
+  font: var(--text-heading-sm);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.fifo-error-text {
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* ---- Empty State ---- */
+.fifo-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+  gap: var(--space-3);
+}
+
+.fifo-empty-icon {
+  color: var(--color-text-disabled);
+}
+
+.fifo-empty-title {
+  font: var(--text-heading-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.fifo-empty-text {
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* ---- Pagination ---- */
+.fifo-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 17px var(--space-4) var(--space-4);
+  background: rgba(242, 247, 237, 0.3);
+  border-top: 1px solid rgba(194, 201, 182, 0.2);
+}
+
+.fifo-pagination-info {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  line-height: 20px;
+}
+
+.fifo-pagination-controls {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.fifo-page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast);
+}
+
+.fifo-page-btn:hover:not(:disabled) {
+  background: var(--color-bg-elevated);
+}
+
+.fifo-page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fifo-page-btn-active {
+  background: var(--color-brand-primary);
+  color: #FFFFFF;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+}
+
+.fifo-page-btn-active:hover {
+  background: var(--color-brand-primary);
+}
+
+.fifo-page-ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1024px) {
+  .fifo-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .fifo-controls-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .fifo-search-wrapper {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .fifo-controls-left {
+    width: 100%;
+  }
+
+  .fifo-search-wrapper {
+    max-width: 100%;
+  }
+
+  .fifo-select {
+    max-width: 100%;
+    flex: 1;
+  }
+
+  .fifo-pagination {
+    flex-direction: column;
+    gap: var(--space-3);
+    align-items: center;
+  }
+}

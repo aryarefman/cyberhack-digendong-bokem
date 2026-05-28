@@ -1,0 +1,101 @@
+/* ============================================================
+   AromaSys — Audit Trail Page Styles
+   Industrial Clarity Design System
+   ============================================================ */
+
+.audit-filters {
+  margin-bottom: var(--space-6);
+}
+
+.audit-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.audit-filter-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 180px;
+  max-width: 240px;
+}
+
+.audit-field-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.audit-count {
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Table styling adjustments */
+.audit-table-container {
+  overflow-x: auto;
+  padding: 0;
+}
+
+.audit-table-container .data-table {
+  min-width: 900px;
+}
+
+.audit-detail {
+  font: var(--text-body-sm);
+  color: var(--color-text-primary);
+  max-width: 320px;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.audit-module {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--color-brand-light);
+  border: 1px solid rgba(26, 122, 74, 0.15);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-brand-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .audit-filter-field {
+    max-width: 100%;
+  }
+}
+
+/* Avatar styles for audit trail entries */
+.audit-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.audit-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #366306;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  flex-shrink: 0;
+}

@@ -1,0 +1,310 @@
+/* ============================================================
+   AromaSys — Sidebar Styles
+   Industrial Clarity Design System (Figma-aligned)
+   ============================================================ */
+
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  z-index: 100;
+  background: #2C742F;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-slow), width var(--transition-slow);
+}
+
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Logo Section (Figma: 254x88, Hard Primary #2C742F bg) */
+.sidebar-logo {
+  height: 88px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-logo-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-decoration: none;
+  width: 100%;
+}
+
+/* Figma: 40x40 rounded icon, Primary #00B207 background */
+.sidebar-logo-icon {
+  width: 40px;
+  height: 40px;
+  background: #00B207;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-logo-monogram {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  color: #FFFFFF;
+  line-height: 1;
+}
+
+.sidebar-logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Figma: Poppins SemiBold 18px, #FFFFFF */
+.sidebar-logo-text h1,
+.sidebar-logo-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #FFFFFF;
+  line-height: 1.2;
+  margin: 0;
+}
+
+/* Figma: Poppins Regular 11px, Soft Primary #84D187, uppercase tracking */
+.sidebar-brand-sub {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: #84D187;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+/* Nav Area (Figma: 254x823) */
+.sidebar-nav {
+  flex: 1;
+  padding: var(--space-4) var(--space-3);
+  overflow-y: auto;
+}
+
+.sidebar-group {
+  margin-bottom: var(--space-4);
+}
+
+/* Figma: group title 11px, uppercase, rgba(255,255,255,0.5) */
+.sidebar-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.5);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-1);
+}
+
+/* Nav Item (Figma: 44px height, 8px border-radius) */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  margin-bottom: 2px;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+/* Figma: Active link 226x47, bright green bg + right bar indicator */
+.sidebar-item.active {
+  background: rgba(76, 175, 80, 0.25);
+  color: #FFFFFF;
+  font-weight: 600;
+  position: relative;
+}
+
+.sidebar-item.active::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: #BCF389;
+  border-radius: 2px;
+}
+
+.sidebar-item-icon {
+  width: 20px;
+  height: 20px;
+  opacity: 0.7;
+  transition: opacity var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.sidebar-item.active .sidebar-item-icon {
+  color: #BCF389;
+  opacity: 1;
+}
+
+.sidebar-item:hover .sidebar-item-icon {
+  opacity: 1;
+}
+
+.sidebar-item-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Footer: Logout Link (Figma: 254x65, simple "Logout" text link) */
+.sidebar-footer {
+  padding: 12px var(--space-3);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-logout-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Poppins', sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.sidebar-logout-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+.sidebar-logout-icon {
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.sidebar-logout-link:hover .sidebar-logout-icon {
+  opacity: 1;
+}
+
+.sidebar-logout-label {
+  flex: 1;
+  text-align: left;
+}
+
+/* Tablet view */
+@media (max-width: 1279px) {
+  .sidebar {
+    width: var(--sidebar-collapsed);
+  }
+
+  .sidebar-logo {
+    justify-content: center;
+    padding: 12px 0;
+  }
+
+  .sidebar-logo-text,
+  .sidebar-group-title,
+  .sidebar-item-label,
+  .sidebar-logout-label {
+    display: none;
+  }
+
+  .sidebar-nav {
+    padding: var(--space-4) 0;
+  }
+
+  .sidebar-group {
+    margin-bottom: var(--space-2);
+  }
+
+  .sidebar-item {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sidebar-footer {
+    justify-content: center;
+    padding: var(--space-4) 0;
+  }
+
+  .sidebar-logout-link {
+    justify-content: center;
+    padding: 0;
+  }
+}
+
+/* Mobile view */
+@media (max-width: 767px) {
+  .sidebar {
+    transform: translateX(-100%);
+    width: var(--sidebar-width);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-logo-text,
+  .sidebar-group-title,
+  .sidebar-item-label,
+  .sidebar-logout-label {
+    display: flex;
+  }
+
+  .sidebar-logo {
+    justify-content: flex-start;
+    padding: 16px 20px;
+  }
+
+  .sidebar-nav {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .sidebar-group {
+    margin-bottom: var(--space-4);
+  }
+
+  .sidebar-item {
+    justify-content: flex-start;
+    padding: 0 var(--space-4);
+  }
+
+  .sidebar-footer {
+    justify-content: flex-start;
+    padding: 12px var(--space-3);
+  }
+
+  .sidebar-logout-link {
+    justify-content: flex-start;
+    padding: 0 var(--space-4);
+  }
+}
