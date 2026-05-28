@@ -1,0 +1,188 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Eye, EyeOff, ChevronDown } from "lucide-react";
+import { MOCK_USERS } from "../../../lib/constants";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: Record<string, string> = {};
+
+    if (!email) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = "Invalid email format";
+
+    if (!password) newErrors.password = "Password is required";
+    else if (password.length < 6) newErrors.password = "Password must be at least 6 characters";
+
+    if (!role) newErrors.role = "Role is required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+
+    // Simulated network delay
+    setTimeout(() => {
+      setIsLoading(false);
+      // Login with selected role, fallback to Admin default
+      const matchedUser = MOCK_USERS.find(u => u.role === role) || MOCK_USERS[0];
+      localStorage.setItem("sima_arome_user", JSON.stringify(matchedUser));
+      router.push("/overview");
+    }, 1500);
+  };
+
+  return (
+    <div className="min-h-screen w-full flex bg-brand-sage-bg select-none font-sans overflow-hidden">
+      
+      {/* 1. Left Section - Form Panel */}
+      <div className="flex-1 flex flex-col justify-center items-center px-6 md:px-16 lg:px-20 xl:px-24 py-10 h-screen overflow-y-auto">
+        <div className="w-full max-w-[430px] space-y-7 text-left">
+          
+          {/* Back button */}
+          <button 
+            onClick={() => router.back()} 
+            className="flex items-center gap-1.5 text-xs font-bold text-brand-sage-grey hover:text-brand-sage-charcoal transition-all focus:outline-none"
+          >
+            <span className="text-sm">←</span> Back
+          </button>
+
+          {/* Form Header */}
+          <div className="space-y-1.5">
+            <h1 className="text-4xl font-extrabold text-brand-sage-charcoal tracking-tight">Sign In</h1>
+            <p className="text-sm text-brand-sage-grey font-medium tracking-wide">Sign In to your AromaSys account</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            {/* Input 1: Email */}
+            <div className="relative w-full">
+              <label className="absolute -top-2.5 left-3.5 bg-brand-sage-bg px-1.5 text-xs font-semibold text-brand-sage-grey leading-none">
+                Email
+              </label>
+              <input
+                type="email"
+                placeholder="john.doe@gmail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-transparent border border-brand-sage-grey/50 focus:border-brand-sage-green rounded-lg px-4 py-3.5 text-sm text-brand-sage-charcoal placeholder:text-brand-sage-grey/40 focus:outline-none focus:ring-1 focus:ring-brand-sage-green/20 transition-all font-semibold"
+              />
+              {errors.email && <p className="text-[10px] text-brand-sage-coral font-bold mt-1 pl-1">{errors.email}</p>}
+            </div>
+
+            {/* Input 2: Password */}
+            <div className="relative w-full">
+              <label className="absolute -top-2.5 left-3.5 bg-brand-sage-bg px-1.5 text-xs font-semibold text-brand-sage-grey leading-none z-10">
+                Password
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-transparent border border-brand-sage-grey/50 focus:border-brand-sage-green rounded-lg px-4 py-3.5 text-sm text-brand-sage-charcoal placeholder:text-brand-sage-grey/40 focus:outline-none focus:ring-1 focus:ring-brand-sage-green/20 transition-all font-semibold pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 text-brand-sage-grey hover:text-brand-sage-charcoal focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                </button>
+              </div>
+              {errors.password && <p className="text-[10px] text-brand-sage-coral font-bold mt-1 pl-1">{errors.password}</p>}
+            </div>
+
+            {/* Input 3: Role Dropdown */}
+            <div className="relative w-full">
+              <label className="absolute -top-2.5 left-3.5 bg-brand-sage-bg px-1.5 text-xs font-semibold text-brand-sage-grey leading-none z-10">
+                Role
+              </label>
+              <div className="relative">
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full bg-transparent border border-brand-sage-grey/50 focus:border-brand-sage-green rounded-lg px-4 py-3.5 text-sm text-brand-sage-charcoal appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-sage-green/20 transition-all font-semibold"
+                >
+                  <option value="" disabled className="bg-brand-sage-bg text-brand-sage-grey/60">Select a role...</option>
+                  <option value="WAREHOUSE_STAFF" className="bg-brand-sage-bg text-brand-sage-charcoal">Warehouse Staff</option>
+                  <option value="QUALITY_CONTROL" className="bg-brand-sage-bg text-brand-sage-charcoal">Quality Control</option>
+                  <option value="ADMIN" className="bg-brand-sage-bg text-brand-sage-charcoal">Operations Manager</option>
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-sage-charcoal pointer-events-none" />
+              </div>
+              {errors.role && <p className="text-[10px] text-brand-sage-coral font-bold mt-1 pl-1">{errors.role}</p>}
+            </div>
+
+            {/* Remember me & Forgot Password */}
+            <div className="flex items-center justify-between pt-1 w-full">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border border-brand-sage-grey/50 bg-transparent text-[#00a81c] focus:ring-0 focus:ring-offset-0 cursor-pointer w-4 h-4"
+                />
+                <span className="text-xs font-semibold text-brand-sage-grey">Remember me</span>
+              </label>
+              <a href="#" className="text-xs font-bold text-brand-sage-coral hover:text-brand-sage-coral/80 transition-all">
+                Forgot Password
+              </a>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3.5 mt-2 rounded-full bg-[#00a81c] hover:bg-[#00be20] text-white font-bold text-sm transition-all duration-200 shadow-md active:scale-[0.98] focus:outline-none disabled:opacity-50 flex items-center justify-center"
+            >
+              {isLoading ? (
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                "Sign In"
+              )}
+            </button>
+          </form>
+
+          {/* Already have an account */}
+          <div className="text-center text-xs pt-2">
+            <span className="text-brand-sage-charcoal/80 font-medium">Already have an account? </span>
+            <Link href="/register" className="font-bold text-[#00a81c] hover:text-[#00be20] transition-all">
+              Sign Up
+            </Link>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 2. Right Section - Split Image Banner */}
+      <div className="hidden lg:block lg:w-[48%] relative h-screen p-0 select-none">
+        <div className="relative h-full w-full rounded-tl-[120px] rounded-bl-[120px] overflow-hidden shadow-2xl">
+          <img
+            src="/signin.jpg"
+            alt="Sign In Aromatic Dropper"
+            className="h-full w-full object-cover"
+          />
+        </div>
+      </div>
+
+    </div>
+  );
+}
