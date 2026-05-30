@@ -15,7 +15,8 @@ import {
   LogOut,
   User,
   Leaf,
-  Bell
+  Bell,
+  ScanSearch
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -37,6 +38,7 @@ const MENU_GROUPS = [
   {
     group: 'PRODUCTION',
     items: [
+      { label: 'QC Vision', href: '/qc-vision', icon: ScanSearch, requireQcVision: true },
       { label: 'Data Ingestion', href: '/copilot/upload', icon: Upload },
       { label: 'Auto-Report', href: '/copilot/report', icon: FileBarChart },
     ],
@@ -78,7 +80,11 @@ export default function Sidebar() {
         <nav className="sidebar-nav">
           {MENU_GROUPS.map((group) => {
             // Filter out items that the user cannot access
-            const visibleItems = group.items.filter(item => !item.requireAudit || canViewAudit());
+            const visibleItems = group.items.filter(item => {
+              if (item.requireAudit && !canViewAudit()) return false;
+              if (item.requireQcVision && !['QC', 'PPIC', 'Admin'].includes(user.role)) return false;
+              return true;
+            });
             if (visibleItems.length === 0) return null;
 
             return (

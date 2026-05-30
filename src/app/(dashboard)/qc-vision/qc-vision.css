@@ -1,0 +1,186 @@
+/* ============================================================
+   AromaSys — QC Vision Module Styles
+   ============================================================ */
+
+.qc-vision-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: var(--content-max-width);
+  width: 100%;
+}
+
+.qc-vision-content {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .qc-vision-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Camera / Upload Area */
+.qc-vision-capture-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.qc-vision-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--color-bg-base);
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.qc-vision-viewport:hover {
+  border-color: var(--color-brand-primary);
+  background: var(--color-bg-elevated);
+}
+
+.qc-vision-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.qc-vision-image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qc-vision-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+.qc-vision-placeholder svg {
+  width: 48px;
+  height: 48px;
+  color: var(--color-brand-primary);
+  opacity: 0.8;
+}
+
+.qc-vision-placeholder-text {
+  font: var(--text-body-md);
+  font-weight: 500;
+}
+
+.qc-vision-placeholder-subtext {
+  font: var(--text-body-sm);
+  color: var(--color-text-disabled);
+}
+
+/* Controls */
+.qc-vision-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-default);
+}
+
+.qc-vision-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.qc-vision-action {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Upload input */
+.qc-vision-file-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Results Area */
+.qc-vision-results-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.qc-vision-result-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-base);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border-strong);
+}
+
+.qc-vision-result-empty svg {
+  width: 32px;
+  height: 32px;
+  margin-bottom: var(--space-3);
+  opacity: 0.5;
+}
+
+.qc-vision-result-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.qc-vision-metric-label {
+  font: var(--text-label);
+  color: var(--color-text-secondary);
+}
+
+.qc-vision-metric-value {
+  font: var(--text-heading-sm);
+  color: var(--color-text-primary);
+}
+
+.qc-vision-progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--color-border-default);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: var(--space-1);
+}
+
+.qc-vision-progress-fill {
+  height: 100%;
+  background: var(--color-brand-primary);
+  border-radius: var(--radius-full);
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.qc-vision-progress-fill.confidence-high { background: var(--color-status-safe); }
+.qc-vision-progress-fill.confidence-medium { background: var(--color-status-warning); }
+.qc-vision-progress-fill.confidence-low { background: var(--color-status-critical); }
