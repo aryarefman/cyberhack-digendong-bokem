@@ -1,12 +1,31 @@
 import { Router } from 'express';
+import { body } from 'express-validator';
 import bcrypt from 'bcryptjs';
 import pool from '../lib/db.js';
-import { signJwt } from '../utils/jwt.js';
+import { signJwt, verifyJwt } from '../utils/jwt.js';
+import { authLimiter } from '../middleware/rateLimit.js';
+import { validate } from '../middleware/validate.js';
 
 const router = Router();
 
+// Allowed roles for registration and user management
+const ALLOWED_ROLES = ['Operator', 'QC', 'Admin', 'PPIC', 'WAREHOUSE_STAFF', 'QUALITY_CONTROL', 'ADMIN'];
+
+// Validation rules
+const loginValidation = [
+  body('email').notEmpty().withMessage('Email is required').isEmail().withMessage('Must be a valid email'),
+  body('password').notEmpty().withMessage('Password is required').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+];
+
+const registerValidation = [
+  body('name').notEmpty().withMessage('Name is required').trim(),
+  body('email').notEmpty().withMessage('Email is required').isEmail().withMessage('Must be a valid email'),
+  body('password').notEmpty().withMessage('Password is required').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('role').notEmpty().withMessage('Role is required'),
+];
+
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, validate(loginValidation), async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -61,12 +80,16 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, validate(registerValidation), async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
     if (!name || !email || !password || !role) {
       return res.status(400).json({ success: false, error: 'Semua field wajib diisi' });
+    }
+
+    if (!ALLOWED_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, error: `Role tidak valid. Allowed: ${ALLOWED_ROLES.join(', ')}` });
     }
 
     const checkUser = await pool.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email]);
@@ -109,6 +132,37 @@ router.post('/register', async (req, res) => {
   } catch (error) {
     console.error('Error in register API:', error);
     return res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/auth/refresh
+// Accepts a valid (non-expired) token, returns a new token with extended 2h expiry
+router.post('/refresh', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'No token provided', code: 'AUTH_FAILED' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const payload = await verifyJwt(token);
+
+    if (!payload) {
+      return res.status(401).json({ success: false, error: 'Invalid or expired token', code: 'AUTH_FAILED' });
+    }
+
+    // Issue a new token with extended expiry
+    const newToken = await signJwt({
+      id: payload.id,
+      name: payload.name,
+      email: payload.email,
+      role: payload.role
+    }, '2h');
+
+    return res.json({ success: true, token: newToken });
+  } catch (error) {
+    console.error('Error in token refresh:', error);
+    return res.status(500).json({ success: false, error: 'Internal Server Error', code: 'INTERNAL_ERROR' });
   }
 });
 

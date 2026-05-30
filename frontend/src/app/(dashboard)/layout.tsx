@@ -1,51 +1,46 @@
-'use client';
-import { useState, useEffect, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
-import { NotificationProvider, useNotifications } from '@/lib/notifications';
-import { getDynamicZones } from '@/lib/mockData';
-import Sidebar from '@/components/Sidebar';
-import ChatbotOverlay from '@/components/ChatbotOverlay';
-import { motion, AnimatePresence } from 'framer-motion';
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
-  Bell, Settings as SettingsIcon, ChevronDown, User, Key, Activity, LogOut,
-  Search, AlertTriangle, Package, MapPin, Info, Snowflake, UploadCloud,
-  ClipboardList, Monitor, Bot, Menu, X,
-  LayoutDashboard, Map, Thermometer, CalendarClock, Upload, FileBarChart,
-  Database, ShieldCheck,
-} from 'lucide-react';
-import type { ChatMessage, NotificationType } from '@/types';
-import { api } from '@/lib/api';
+  Menu, X, Bell, Search, LayoutDashboard, Warehouse, Calendar,
+  Thermometer, Database, FileSpreadsheet, Layers, ShieldCheck,
+  LogOut, ChevronDown, User, Bot, Settings, AlertTriangle,
+  Snowflake, Package, UploadCloud, Info, Key, Activity, Users, Map,
+  ArrowUpRight, Microscope, Globe
+} from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { api } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
+import ChatbotOverlay from "@/components/ChatbotOverlay";
+import type { ChatMessage } from "@/types";
+import { motion, AnimatePresence } from "framer-motion";
+import { NotificationProvider, useNotifications } from "@/lib/notifications";
 
-const SEARCH_ITEMS = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Interactive Floor Plan', href: '/digital-twin/floor-plan', icon: Map },
-  { label: 'FIFO & Expiry', href: '/digital-twin/fifo-expiry', icon: CalendarClock },
-  { label: 'Cold-Chain Monitor', href: '/digital-twin/cold-chain', icon: Thermometer },
-  { label: 'Data Ingestion', href: '/copilot/upload', icon: Upload },
-  { label: 'Auto-Report', href: '/copilot/report', icon: FileBarChart },
-  { label: 'Profile', href: '/settings/profile', icon: User },
-  { label: 'Inventory Master', href: '/settings/inventory', icon: Database },
-  { label: 'Audit Trail', href: '/settings/audit', icon: ShieldCheck },
-];
-
-function getNotifIcon(type: NotificationType) {
+function getNotificationIcon(type: string) {
   switch (type) {
-    case 'alert': return <AlertTriangle className="w-4 h-4" />;
-    case 'coldchain': return <Snowflake className="w-4 h-4" />;
-    case 'inventory': return <Package className="w-4 h-4" />;
-    case 'upload': return <UploadCloud className="w-4 h-4" />;
-    case 'audit': return <ClipboardList className="w-4 h-4" />;
-    case 'system': return <Monitor className="w-4 h-4" />;
-    default: return <Info className="w-4 h-4" />;
+    case 'alert': return <AlertTriangle className="w-4 h-4 text-red-600 animate-bounce" />;
+    case 'coldchain': return <Snowflake className="w-4 h-4 text-blue-500" />;
+    case 'inventory': return <Package className="w-4 h-4 text-[#2C742F]" />;
+    case 'upload': return <UploadCloud className="w-4 h-4 text-[#2C742F]" />;
+    case 'audit': return <ShieldCheck className="w-4 h-4 text-stone-600" />;
+    default: return <Info className="w-4 h-4 text-blue-500" />;
   }
 }
 
-function formatBadge(count: number): string | null {
-  if (count <= 0) return null;
-  if (count > 99) return '99+';
-  return String(count);
-}
+// Page transition variants
+const pageVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
+};
+
+const pageTransition = {
+  type: "tween",
+  ease: "easeOut",
+  duration: 0.3,
+};
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -56,168 +51,354 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 }
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const { t, lang } = useLanguage();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { user, logout, loading } = useAuth();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { id: 1, sender: 'ai', text: 'Halo! Saya Aro, asisten AI AromaSys. Ada yang bisa saya bantu terkait inventori atau data sensor hari ini?', time: '08:00' }
+  ]);
+
+  // Update chatbot greeting when language changes (only if no conversation has started)
+  useEffect(() => {
+    setChatMessages(prev => {
+      if (prev.length === 1 && prev[0].id === 1 && prev[0].sender === 'ai') {
+        return [{ id: 1, sender: 'ai', text: t('chatbotGreeting'), time: '08:00' }];
+      }
+      return prev;
+    });
+  }, [lang]);
+
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  // RBAC route protection
+  useEffect(() => {
+    if (!loading && user && pathname) {
+      const role = user.role || 'Operator';
+      const roleAccess: Record<string, string[]> = {
+        Admin: [
+          '/overview', '/floor-plan', '/inventory-master', '/fifo-expiry',
+          '/cold-chain', '/data-ingestion', '/auto-report', '/audit-trail',
+          '/qc', '/settings/profile', '/settings/language', '/user-management',
+          '/settings/notifications'
+        ],
+        QC: [
+          '/overview', '/floor-plan', '/inventory-master', '/fifo-expiry',
+          '/cold-chain', '/data-ingestion', '/auto-report', '/audit-trail',
+          '/qc', '/settings/profile', '/settings/language',
+          '/settings/notifications'
+        ],
+        PPIC: [
+          '/overview', '/floor-plan', '/inventory-master', '/fifo-expiry',
+          '/cold-chain', '/data-ingestion', '/auto-report', '/audit-trail',
+          '/settings/profile', '/settings/language', '/settings/notifications'
+        ],
+        Operator: [
+          '/overview', '/floor-plan', '/inventory-master', '/fifo-expiry',
+          '/cold-chain', '/data-ingestion', '/settings/profile',
+          '/settings/language', '/settings/notifications'
+        ],
+      };
+      const rk = Object.keys(roleAccess).find(k => k.toLowerCase() === role.toLowerCase()) || 'Operator';
+      const allowed = roleAccess[rk];
+      if (!allowed.includes(pathname)) {
+        router.push('/overview');
+      }
+    }
+  }, [loading, user, pathname, router]);
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
+  // ─── Live Search ───
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [inventoryResults, setInventoryResults] = useState<Array<{ id: string; name: string; category: string; location: string }>>([]);
-  const [auditResults, setAuditResults] = useState<Array<{ id: number; user?: string; username?: string; action: string; detail?: string }>>([]);
-  const [zoneResults, setZoneResults] = useState<Array<{ id: string; name: string; color: string; type: string; tempMin: number | null; tempMax: number | null }>>([]);
-  const [inventoryLoading, setInventoryLoading] = useState(false);
-  const [userAvatar, setUserAvatar] = useState<string | null>(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{
-    id: Date.now(),
-    sender: 'ai',
-    text: `Hey there! I'm Aro, your AromaSys AI Copilot, connected live to the warehouse database. Ask me anything about your warehouse operations!`,
-    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-  }]);
-
+  const [auditResults, setAuditResults] = useState<Array<{ id?: string; user?: string; username?: string; action?: string; timestamp?: string }>>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const SEARCH_PAGES = [
+    { label: t('overview'), href: '/overview', icon: LayoutDashboard },
+    { label: t('floorPlan'), href: '/floor-plan', icon: Map },
+    { label: t('inventoryMaster'), href: '/inventory-master', icon: Layers },
+    { label: t('fifoExpiry'), href: '/fifo-expiry', icon: Calendar },
+    { label: t('coldChain'), href: '/cold-chain', icon: Thermometer },
+    { label: t('dataIngestion'), href: '/data-ingestion', icon: Database },
+    { label: t('autoReport'), href: '/auto-report', icon: FileSpreadsheet },
+    { label: t('auditLogs'), href: '/audit-trail', icon: ShieldCheck },
+    { label: t('userManagement'), href: '/user-management', icon: Users },
+  ];
+
+  const filteredPages = searchQuery.trim()
+    ? SEARCH_PAGES.filter(p => p.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    : [];
 
   useEffect(() => {
-    if (!loading && !user) router.push('/login');
-  }, [user, loading, router]);
-
-  useEffect(() => {
-    const loadAvatar = () => {
-      try {
-        const saved = localStorage.getItem('aromasys_user');
-        if (saved) setUserAvatar(JSON.parse(saved).avatar || null);
-      } catch {}
-    };
-    loadAvatar();
-    const handleStorage = (e: StorageEvent) => { if (!e.key || e.key === 'aromasys_user') loadAvatar(); };
-    window.addEventListener('storage', handleStorage);
-    window.addEventListener('aromasys_avatar_updated', loadAvatar);
-    return () => { window.removeEventListener('storage', handleStorage); window.removeEventListener('aromasys_avatar_updated', loadAvatar); };
-  }, []);
-
-  useEffect(() => {
-    const handleOutside = (e: MouseEvent) => {
-      setShowProfileMenu(false);
-      setShowNotifications(false);
+    const handleClickOutside = (e: MouseEvent) => {
       if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
         setShowSearchDropdown(false);
       }
     };
-    window.addEventListener('click', handleOutside);
-    return () => window.removeEventListener('click', handleOutside);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setInventoryResults([]); setAuditResults([]); setZoneResults([]);
+      setInventoryResults([]);
+      setAuditResults([]);
       return;
     }
-    const q = searchQuery.toLowerCase();
-    setZoneResults(getDynamicZones().filter(z => z.name.toLowerCase().includes(q) || z.id.toLowerCase().includes(q) || z.type.toLowerCase().includes(q)).slice(0, 5));
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      setInventoryLoading(true);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(async () => {
+      setSearchLoading(true);
       try {
-        const invData = await api.get<{ success: boolean; items: Array<{ id: string; name: string; category: string; location: string }> }>(`/inventory?search=${encodeURIComponent(searchQuery.trim())}`);
-        setInventoryResults(invData.success ? (invData.items ?? []).slice(0, 5) : []);
-
-        const auditData = await api.get<{ success: boolean; logs: Array<{ id: number; user?: string; username?: string; action: string; detail?: string }> }>(`/audit?user=${encodeURIComponent(searchQuery.trim())}`);
-        if (auditData.success && auditData.logs?.length > 0) {
-          setAuditResults(auditData.logs.slice(0, 3));
-        } else {
-          const all = await api.get<{ success: boolean; logs: Array<{ id: number; user?: string; username?: string; action: string; detail?: string }> }>('/audit');
-          if (all.success) {
-            setAuditResults((all.logs ?? []).filter(l => l.user?.toLowerCase().includes(q) || l.action?.toLowerCase().includes(q)).slice(0, 3));
-          } else setAuditResults([]);
-        }
-      } catch { setInventoryResults([]); setAuditResults([]); }
-      finally { setInventoryLoading(false); }
+        const [invData, auditData] = await Promise.all([
+          api.get<{ success: boolean; items: Array<{ id: string; name: string; category: string; location: string }> }>(`/inventory?search=${encodeURIComponent(searchQuery.trim())}`),
+          api.get<{ success: boolean; logs: Array<{ id?: string; user?: string; username?: string; action?: string; timestamp?: string }> }>('/audit'),
+        ]);
+        if (invData.success) setInventoryResults((invData.items ?? []).slice(0, 5));
+        else setInventoryResults([]);
+        if (auditData.success) {
+          const q = searchQuery.toLowerCase();
+          const filtered = (auditData.logs ?? []).filter(log =>
+            log.user?.toLowerCase().includes(q) ||
+            log.username?.toLowerCase().includes(q) ||
+            log.action?.toLowerCase().includes(q)
+          );
+          setAuditResults(filtered.slice(0, 3));
+        } else setAuditResults([]);
+      } catch {
+        setInventoryResults([]);
+        setAuditResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
     }, 300);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    return () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); };
   }, [searchQuery]);
 
-  const filteredPages = searchQuery.trim()
-    ? SEARCH_ITEMS.filter(i => i.label.toLowerCase().includes(searchQuery.toLowerCase()))
-    : [];
-
-  const goTo = (href: string) => {
-    router.push(href);
-    setSearchQuery(''); setShowSearchDropdown(false);
-    setInventoryResults([]); setAuditResults([]); setZoneResults([]);
+  // RBAC: define which routes each role can access
+  const ROLE_ACCESS: Record<string, string[]> = {
+    Admin: [
+      '/overview', '/floor-plan', '/inventory-master', '/fifo-expiry',
+      '/cold-chain', '/data-ingestion', '/auto-report', '/audit-trail',
+      '/qc', '/settings/profile', '/settings/language', '/user-management',
+      '/settings/notifications'
+    ],
+    QC: [
+      '/overview', '/floor-plan', '/inventory-master', '/fifo-expiry',
+      '/cold-chain', '/data-ingestion', '/auto-report', '/audit-trail',
+      '/qc', '/settings/profile', '/settings/language',
+      '/settings/notifications'
+    ],
+    PPIC: [
+      '/overview', '/floor-plan', '/inventory-master', '/fifo-expiry',
+      '/cold-chain', '/data-ingestion', '/auto-report', '/audit-trail',
+      '/settings/profile', '/settings/language', '/settings/notifications'
+    ],
+    Operator: [
+      '/overview', '/floor-plan', '/inventory-master', '/fifo-expiry',
+      '/cold-chain', '/data-ingestion', '/settings/profile',
+      '/settings/language', '/settings/notifications'
+    ],
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#D7E5D8]">
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 text-center space-y-4">
-          <div className="spinner mx-auto" style={{ width: 40, height: 40, borderWidth: 3 }} />
-          <h2 className="text-lg font-bold text-[#1C1B1F]">AromaSys</h2>
-          <p className="text-sm text-[#79747E]">Memuat data sistem...</p>
-        </div>
-      </div>
-    );
-  }
+  const userRole = user?.role || 'Operator';
+  const roleKey = Object.keys(ROLE_ACCESS).find(k => k.toLowerCase() === userRole.toLowerCase()) || 'Operator';
+  const allowedRoutes = ROLE_ACCESS[roleKey];
 
-  if (!user) return null;
+  const filterItems = (items: { name: string; href: string; icon: any }[]) =>
+    items.filter(item => allowedRoutes.includes(item.href));
 
+  // Hikari sidebar menu groups
   const menuGroups = [
-    { title: 'MAIN', items: [{ name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }] },
-    { title: 'WAREHOUSE', items: [{ name: 'Floor Plan', href: '/digital-twin/floor-plan', icon: Map }, { name: 'FIFO & Expiry', href: '/digital-twin/fifo-expiry', icon: CalendarClock }, { name: 'Cold-Chain', href: '/digital-twin/cold-chain', icon: Thermometer }] },
-    { title: 'PRODUCTION', items: [{ name: 'Data Ingestion', href: '/copilot/upload', icon: Upload }, { name: 'Auto-Report', href: '/copilot/report', icon: FileBarChart }] },
-    { title: 'SETTINGS', items: [{ name: 'Profile', href: '/settings/profile', icon: User }, { name: 'Inventory Master', href: '/settings/inventory', icon: Database }, { name: 'Audit Trail', href: '/settings/audit', icon: ShieldCheck }] },
-  ];
+    {
+      title: t('mainGroup'),
+      items: filterItems([
+        { name: t('overview'), href: "/overview", icon: LayoutDashboard },
+        { name: t('floorPlan'), href: "/floor-plan", icon: Map },
+      ])
+    },
+    {
+      title: t('warehouseGroup'),
+      items: filterItems([
+        { name: t('inventoryMaster'), href: "/inventory-master", icon: Layers },
+        { name: t('fifoExpiry'), href: "/fifo-expiry", icon: Calendar },
+        { name: t('coldChain'), href: "/cold-chain", icon: Thermometer },
+        { name: t('dataIngestion'), href: "/data-ingestion", icon: Database },
+      ])
+    },
+    {
+      title: t('productionGroup'),
+      items: filterItems([
+        { name: t('autoReport'), href: "/auto-report", icon: FileSpreadsheet },
+        { name: t('auditLogs'), href: "/audit-trail", icon: ShieldCheck },
+        { name: t('qualityControl'), href: "/qc", icon: Microscope },
+      ])
+    },
+    {
+      title: t('settingsGroup'),
+      items: filterItems([
+        { name: t('profile'), href: "/settings/profile", icon: User },
+        { name: t('language'), href: "/settings/language", icon: Globe },
+        { name: t('userManagement'), href: "/user-management", icon: Users },
+      ])
+    }
+  ].filter(group => group.items.length > 0);
+
+  const getDisplayRole = (role: string) => {
+    const r = (role || '').toLowerCase();
+    if (r === 'admin') return t('roleAdmin');
+    if (r === 'qc' || r === 'quality_control') return t('roleQC');
+    if (r === 'ppic') return t('rolePPIC');
+    return t('roleOperator');
+  };
 
   return (
     <div className="h-screen w-full flex bg-[#D7E5D8] select-none font-sans overflow-hidden">
+
       {/* Desktop Sidebar */}
-      <Sidebar />
+      <aside className="hidden lg:flex flex-col w-64 bg-[#2C742F] border-r border-[#2C742F]/10 h-full shrink-0 text-left">
+        {/* Brand Logo */}
+        <div className="h-16 border-b border-white/10 flex flex-col items-center justify-center shrink-0">
+          <div className="flex items-center gap-2 justify-center">
+            <img src="/logo-cerah.png" alt="AromaSys" className="w-6 h-6 object-contain" />
+            <span className="font-semibold text-2xl text-emerald-50 leading-none">AromaSys</span>
+          </div>
+          <div className="text-[#AAE970] text-[10px] font-bold uppercase tracking-widest mt-1 text-center">
+            SIMA AROME
+          </div>
+        </div>
+
+        {/* Sidebar Nav */}
+        <nav className="flex-1 px-3 py-6 space-y-5 overflow-y-auto">
+          {menuGroups.map((group) => (
+            <div key={group.title} className="space-y-1">
+              <div className="px-4 py-1">
+                <span className="text-green-200 text-xs font-bold uppercase tracking-wider block opacity-70">
+                  {group.title}
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = pathname === item.href;
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={`w-full px-4 py-2.5 flex items-center gap-3.5 transition-all text-sm font-semibold group relative ${isActive
+                        ? "text-[#CBEAD2] bg-white/10 rounded-l-xl rounded-r-none border-r-4 border-[#BCF389]"
+                        : "text-green-200/80 hover:text-white hover:bg-white/5 rounded-xl"
+                      }`}
+                    >
+                      <Icon className={`w-4.5 h-4.5 shrink-0 ${isActive ? "text-[#CBEAD2]" : "text-green-200/70 group-hover:text-green-100"}`} />
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Footer Logout */}
+        <div className="p-3 border-t border-white/10">
+          <button
+            onClick={handleLogout}
+            className="w-full px-4 py-2.5 rounded-xl flex items-center gap-3.5 text-sm font-semibold text-green-200/80 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <LogOut className="w-4.5 h-4.5 text-green-200/70" />
+            <span>{t('logout')}</span>
+          </button>
+        </div>
+      </aside>
 
       {/* Mobile Drawer */}
       <AnimatePresence>
         {isMobileOpen && (
           <>
             <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 0.5 }} exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
               onClick={() => setIsMobileOpen(false)}
-              className="fixed inset-0 bg-black z-40 lg:hidden"
+              className="fixed inset-0 bg-black/75 z-40 lg:hidden"
             />
             <motion.aside
-              initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed inset-y-0 left-0 w-64 bg-[#2C742F] p-5 z-50 lg:hidden flex flex-col"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed inset-y-0 left-0 w-64 bg-[#2C742F] p-5 z-50 lg:hidden flex flex-col text-left"
             >
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-semibold text-2xl text-emerald-50">AromaSys</span>
-                <button onClick={() => setIsMobileOpen(false)} className="p-1 rounded-lg hover:bg-white/5 text-green-200">
+                <div className="flex items-center gap-2 justify-center flex-1">
+                  <img src="/logo-cerah.png" alt="AromaSys" className="w-6 h-6 object-contain" />
+                  <span className="font-semibold text-2xl text-emerald-50 leading-none">AromaSys</span>
+                </div>
+                <button onClick={() => setIsMobileOpen(false)} className="p-1 rounded-lg hover:bg-white/5 text-green-200 hover:text-white shrink-0">
                   <X className="w-5 h-5" />
                 </button>
               </div>
+              <div className="text-[#AAE970] text-[10px] font-bold uppercase tracking-widest mt-1.5 text-center">
+                SIMA AROME
+              </div>
+
               <nav className="flex-1 py-6 space-y-5 overflow-y-auto">
-                {menuGroups.map(group => (
+                {menuGroups.map((group) => (
                   <div key={group.title} className="space-y-1">
-                    <span className="px-4 text-green-200 text-xs font-bold uppercase tracking-wider opacity-70 block">{group.title}</span>
-                    {group.items.map(item => {
-                      const Icon = item.icon;
-                      const isActive = pathname === item.href;
-                      return (
-                        <button key={item.href} onClick={() => { router.push(item.href); setIsMobileOpen(false); }}
-                          className={`w-full px-4 py-2.5 flex items-center gap-3.5 text-sm font-semibold rounded-xl transition-all ${isActive ? 'text-[#CBEAD2] bg-white/10' : 'text-green-200/80 hover:text-white hover:bg-white/5'}`}>
-                          <Icon className="w-4 h-4" />
-                          <span>{item.name}</span>
-                        </button>
-                      );
-                    })}
+                    <div className="px-4 py-1">
+                      <span className="text-green-200 text-xs font-bold uppercase tracking-wider block opacity-70">
+                        {group.title}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      {group.items.map((item) => {
+                        const isActive = pathname === item.href;
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            onClick={() => setIsMobileOpen(false)}
+                            className={`w-full px-4 py-2.5 flex items-center gap-3.5 transition-all text-sm font-semibold group relative ${isActive
+                              ? "text-[#CBEAD2] bg-white/10 rounded-l-xl rounded-r-none border-r-4 border-[#BCF389]"
+                              : "text-green-200/80 hover:text-white hover:bg-white/5 rounded-xl"
+                            }`}
+                          >
+                            <Icon className={`w-4.5 h-4.5 shrink-0 ${isActive ? "text-[#CBEAD2]" : "text-green-200/70 group-hover:text-green-100"}`} />
+                            <span>{item.name}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
                 ))}
               </nav>
+
               <div className="border-t border-white/10 pt-4">
-                <button onClick={logout} className="w-full px-4 py-2.5 rounded-xl flex items-center gap-3.5 text-sm font-semibold text-green-200/80 hover:text-white hover:bg-white/5 transition-all">
-                  <LogOut className="w-4 h-4" /><span>Logout</span>
+                <button
+                  onClick={handleLogout}
+                  className="w-full px-4 py-2.5 rounded-xl flex items-center gap-3.5 text-sm font-semibold text-green-200/80 hover:text-white hover:bg-white/5 transition-all"
+                >
+                  <LogOut className="w-4.5 h-4.5 text-green-200/70" />
+                  <span>{t('logout')}</span>
                 </button>
               </div>
             </motion.aside>
@@ -225,123 +406,115 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Main content area */}
+      {/* Main Page Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
 
-        {/* Topbar */}
-        <header className="h-16 sticky top-0 z-30 bg-[#D7E5D8]/95 border-b border-[#2C742F]/10 backdrop-blur-md px-4 md:px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setIsMobileOpen(true)} className="p-1.5 rounded-lg border border-[#2C742F]/20 bg-white/10 hover:bg-white/20 lg:hidden text-[#2C742F]">
+        {/* Top Header Bar */}
+        <header className="h-16 sticky top-0 z-30 bg-[#D7E5D8]/95 border-b border-[#2C742F]/10 backdrop-blur-md px-4 sm:px-6 md:px-8 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsMobileOpen(true)}
+              className="p-1.5 rounded-lg border border-[#2C742F]/20 bg-white/10 hover:bg-white/20 lg:hidden text-[#2C742F]"
+            >
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Search */}
+            {/* Search Pill */}
             <div ref={searchWrapperRef} className="relative hidden md:block w-72" onClick={e => e.stopPropagation()}>
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#79747E] pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search pages, inventory, zones..."
+                placeholder={t('searchPlaceholder')}
                 value={searchQuery}
-                onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(e.target.value.trim().length > 0); }}
+                onChange={(e) => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }}
                 onFocus={() => { if (searchQuery.trim()) setShowSearchDropdown(true); }}
                 className="w-full bg-[#f3f6f3] rounded-full border border-stone-300 py-1.5 pl-10 pr-4 text-xs font-semibold text-[#1C1B1F] placeholder:text-[#79747E]/60 focus:outline-none focus:ring-1 focus:ring-[#2C742F]/20"
               />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#79747E]" />
 
               {/* Search Dropdown */}
               <AnimatePresence>
-                {showSearchDropdown && (
+                {showSearchDropdown && searchQuery.trim() && (
                   <motion.div
                     initial={{ opacity: 0, y: 6, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.97 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute top-full mt-2 left-0 w-80 bg-white/95 backdrop-blur-md border border-stone-200/60 rounded-2xl shadow-xl z-50 overflow-hidden"
-                    onClick={e => e.stopPropagation()}
+                    className="absolute top-full left-0 mt-2 w-full bg-[#F2F7ED]/98 backdrop-blur-lg border border-stone-200/60 rounded-2xl shadow-xl z-50 overflow-hidden text-left max-h-[360px] overflow-y-auto"
                   >
-                    {(filteredPages.length > 0 || inventoryResults.length > 0 || auditResults.length > 0 || zoneResults.length > 0) ? (
-                      <div className="p-2 space-y-1 max-h-72 overflow-y-auto">
-                        {filteredPages.length > 0 && (
-                          <>
-                            <p className="px-3 py-1 text-[10px] font-bold text-[#79747E] uppercase tracking-wider">Pages</p>
-                            {filteredPages.map(item => {
-                              const Icon = item.icon;
-                              return (
-                                <button key={item.href} onClick={() => goTo(item.href)}
-                                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[#D7E5D8]/60 transition-all text-left">
-                                  <div className="w-7 h-7 rounded-lg bg-[#2C742F]/10 flex items-center justify-center shrink-0">
-                                    <Icon className="w-3.5 h-3.5 text-[#2C742F]" />
-                                  </div>
-                                  <span className="text-sm font-semibold text-[#1C1B1F]">{item.label}</span>
-                                </button>
-                              );
-                            })}
-                          </>
-                        )}
-                        {inventoryResults.length > 0 && (
-                          <>
-                            <p className="px-3 py-1 text-[10px] font-bold text-[#79747E] uppercase tracking-wider">Inventory</p>
-                            {inventoryResults.map(item => (
-                              <button key={item.id} onClick={() => goTo('/settings/inventory')}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[#D7E5D8]/60 transition-all text-left">
-                                <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                                  <Package className="w-3.5 h-3.5 text-blue-600" />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-[#1C1B1F] truncate">{item.name}</p>
-                                  <p className="text-[10px] text-[#79747E]">{item.category} · {item.location}</p>
-                                </div>
-                              </button>
-                            ))}
-                          </>
-                        )}
-                        {zoneResults.length > 0 && (
-                          <>
-                            <p className="px-3 py-1 text-[10px] font-bold text-[#79747E] uppercase tracking-wider">Zones</p>
-                            {zoneResults.map(zone => (
-                              <button key={zone.id} onClick={() => goTo('/digital-twin/floor-plan')}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[#D7E5D8]/60 transition-all text-left">
-                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: zone.color + '20' }}>
-                                  <MapPin className="w-3.5 h-3.5" style={{ color: zone.color }} />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-[#1C1B1F] truncate">{zone.name}</p>
-                                  <p className="text-[10px] text-[#79747E]">{zone.type}</p>
-                                </div>
-                              </button>
-                            ))}
-                          </>
-                        )}
-                        {auditResults.length > 0 && (
-                          <>
-                            <p className="px-3 py-1 text-[10px] font-bold text-[#79747E] uppercase tracking-wider">Audit Logs</p>
-                            {auditResults.map(log => (
-                              <button key={log.id} onClick={() => goTo('/settings/audit')}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[#D7E5D8]/60 transition-all text-left">
-                                <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
-                                  <Activity className="w-3.5 h-3.5 text-orange-600" />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-[#1C1B1F] truncate">{log.user || log.username} — {log.action}</p>
-                                  <p className="text-[10px] text-[#79747E] truncate">{log.detail?.substring(0, 50)}</p>
-                                </div>
-                              </button>
-                            ))}
-                          </>
-                        )}
-                        {inventoryLoading && filteredPages.length === 0 && inventoryResults.length === 0 && (
-                          <div className="flex items-center gap-2 px-3 py-3 text-sm text-[#79747E]">
-                            <div className="spinner" style={{ width: 16, height: 16 }} />
-                            <span>Searching...</span>
-                          </div>
-                        )}
+                    {filteredPages.length > 0 && (
+                      <div className="p-2">
+                        <p className="px-3 py-1 text-[9px] font-bold text-[#79747E] uppercase tracking-wider">{t('searchPages')}</p>
+                        {filteredPages.map(page => {
+                          const Icon = page.icon;
+                          return (
+                            <button
+                              key={page.href}
+                              onClick={() => { router.push(page.href); setShowSearchDropdown(false); setSearchQuery(''); }}
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/60 transition-all text-left"
+                            >
+                              <div className="w-7 h-7 rounded-lg bg-emerald-100 border border-[#2C742F]/10 flex items-center justify-center shrink-0">
+                                <Icon className="w-3.5 h-3.5 text-[#2C742F]" />
+                              </div>
+                              <span className="text-xs font-semibold text-[#1C1B1F]">{page.label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-2 py-6 text-[#79747E]">
-                        {inventoryLoading ? (
-                          <><div className="spinner" /><span className="text-sm">Searching...</span></>
-                        ) : (
-                          <><Search className="w-5 h-5" /><span className="text-sm">No results found</span></>
-                        )}
+                    )}
+
+                    {inventoryResults.length > 0 && (
+                      <div className="p-2 border-t border-stone-200/40">
+                        <p className="px-3 py-1 text-[9px] font-bold text-[#79747E] uppercase tracking-wider">{t('searchInventory')}</p>
+                        {inventoryResults.map(item => (
+                          <button
+                            key={item.id}
+                            onClick={() => { router.push('/inventory-master'); setShowSearchDropdown(false); setSearchQuery(''); }}
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/60 transition-all text-left"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-emerald-100 border border-[#2C742F]/10 flex items-center justify-center shrink-0">
+                              <Package className="w-3.5 h-3.5 text-[#2C742F]" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-[#1C1B1F] truncate">{item.name}</p>
+                              <p className="text-[9px] text-[#79747E] truncate">{item.category} · {item.location}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {auditResults.length > 0 && (
+                      <div className="p-2 border-t border-stone-200/40">
+                        <p className="px-3 py-1 text-[9px] font-bold text-[#79747E] uppercase tracking-wider">{t('searchActivityLogs')}</p>
+                        {auditResults.map((log, i) => (
+                          <button
+                            key={`audit-${i}`}
+                            onClick={() => { router.push('/audit-trail'); setShowSearchDropdown(false); setSearchQuery(''); }}
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/60 transition-all text-left"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-stone-100 border border-stone-200/40 flex items-center justify-center shrink-0">
+                              <ShieldCheck className="w-3.5 h-3.5 text-stone-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-[#1C1B1F] truncate">{log.username || log.user || 'Unknown'}</p>
+                              <p className="text-[9px] text-[#79747E] truncate">{log.action}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {searchLoading && filteredPages.length === 0 && inventoryResults.length === 0 && auditResults.length === 0 && (
+                      <div className="p-6 flex items-center justify-center gap-2 text-xs text-[#79747E] font-semibold">
+                        <div className="w-4 h-4 border-2 border-[#2C742F] border-t-transparent rounded-full animate-spin" />
+                        {t('searching')}
+                      </div>
+                    )}
+
+                    {!searchLoading && filteredPages.length === 0 && inventoryResults.length === 0 && auditResults.length === 0 && (
+                      <div className="p-6 flex flex-col items-center justify-center gap-1 text-center">
+                        <Search className="w-5 h-5 text-[#79747E]/60" />
+                        <p className="text-xs text-[#79747E] font-semibold">{t('searchNoResults')}</p>
                       </div>
                     )}
                   </motion.div>
@@ -350,75 +523,107 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Right: notifications, chatbot, settings, profile */}
-          <div className="flex items-center gap-2">
-            {/* Notifications */}
+          {/* Right Header items */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Notification Bell */}
             <div className="relative">
               <button
-                onClick={e => { e.stopPropagation(); setShowNotifications(!showNotifications); setShowProfileMenu(false); }}
-                className="relative p-2 rounded-full border border-[#2C742F]/10 bg-white/40 hover:bg-white/70 text-[#1C1B1F] transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNotifications(!showNotifications);
+                  setIsProfileOpen(false);
+                }}
+                className="relative p-2 rounded-full border border-[#2C742F]/10 bg-white/40 hover:bg-white/70 text-[#1C1B1F] transition-colors focus:outline-none"
+                title={t('notifications')}
               >
-                <Bell className="w-4 h-4" />
-                {formatBadge(unreadCount) && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full bg-[#EA4B48] text-white text-[9px] font-bold flex items-center justify-center px-1">
-                    {formatBadge(unreadCount)}
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#EA4B48] text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
+                    {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
+                <Bell className="w-4 h-4" />
               </button>
 
               <AnimatePresence>
                 {showNotifications && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-80 bg-white/95 backdrop-blur-md border border-stone-200/60 rounded-2xl shadow-xl z-50 overflow-hidden"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-stone-100">
-                      <h4 className="font-bold text-sm text-[#1C1B1F]">Notifications</h4>
-                      {unreadCount > 0 && (
-                        <button onClick={markAllAsRead} className="text-[10px] font-bold text-[#2C742F] hover:text-[#366306]">
-                          Mark all as read
-                        </button>
-                      )}
-                    </div>
-                    <div className="max-h-72 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <p className="text-sm text-[#79747E] text-center py-6">No notifications</p>
-                      ) : notifications.slice(0, 5).map(notif => (
-                        <button
-                          key={notif.id}
-                          onClick={() => markAsRead(notif.id)}
-                          className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-[#D7E5D8]/40 transition-all text-left border-b border-stone-100/60 last:border-0 ${!notif.isRead ? 'bg-[#D7E5D8]/20' : ''}`}
-                        >
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${notif.type === 'alert' ? 'bg-red-100 text-red-500' : 'bg-[#2C742F]/10 text-[#2C742F]'}`}>
-                            {getNotifIcon(notif.type)}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-[#1C1B1F]">{notif.title}</p>
-                            <p className="text-xs text-[#79747E] mt-0.5 leading-relaxed">{notif.description}</p>
-                          </div>
-                          {!notif.isRead && <span className="w-2 h-2 rounded-full bg-[#EA4B48] shrink-0 mt-2" />}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => { router.push('/settings/notifications'); setShowNotifications(false); }}
-                      className="w-full py-3 text-xs font-bold text-[#2C742F] hover:bg-[#D7E5D8]/30 transition-all border-t border-stone-100"
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2.5 w-80 bg-[#F2F7ED]/95 backdrop-blur-md border border-stone-200/50 rounded-2xl shadow-xl z-50 overflow-hidden text-left"
                     >
-                      See all notifications
-                    </button>
-                  </motion.div>
+                      <div className="p-4 border-b border-stone-200/60 flex items-center justify-between">
+                        <span className="text-sm font-bold text-green-950">{t('notificationsTitle')}</span>
+                        {unreadCount > 0 && (
+                          <button onClick={markAllAsRead} className="text-[10px] font-bold text-[#2C742F] hover:underline">
+                            {t('markAllRead')}
+                          </button>
+                        )}
+                      </div>
+                      <div className="max-h-64 overflow-y-auto divide-y divide-stone-200/60 custom-scrollbar">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-stone-400 font-semibold">
+                            {t('noNewNotifications')}
+                          </div>
+                        ) : (
+                          notifications.map((notif) => (
+                            <div
+                              key={notif.id}
+                              className={`p-3 flex gap-3 transition-colors ${!notif.isRead ? 'bg-emerald-50/10' : ''}`}
+                            >
+                              <div className="w-7 h-7 rounded-lg bg-white border border-[#AAE970]/10 flex items-center justify-center shrink-0">
+                                {getNotificationIcon(notif.type)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-xs ${!notif.isRead ? 'font-bold text-green-950' : 'text-stone-700'}`}>{notif.title}</p>
+                                <p className="text-[10px] text-stone-500 mt-0.5 truncate">{notif.description}</p>
+                                <div className="flex items-center gap-2 mt-1.5">
+                                  {notif.href && (
+                                    <button
+                                      onClick={() => { markAsRead(notif.id); router.push(notif.href!); setShowNotifications(false); }}
+                                      className="flex items-center gap-1 text-[9px] font-bold text-[#2C742F] hover:underline"
+                                    >
+                                      <ArrowUpRight size={10} className="shrink-0" /> {t('viewDetail')}
+                                    </button>
+                                  )}
+                                  {!notif.isRead && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); markAsRead(notif.id); }}
+                                      className="text-[9px] font-bold text-[#79747E] hover:text-[#1C1B1F] hover:underline"
+                                    >
+                                      {t('markRead')}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              {!notif.isRead && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#EA4B48] self-center shrink-0" />
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="p-2.5 border-t border-stone-200/60 text-center bg-white/40">
+                        <button
+                          onClick={() => { router.push('/settings/notifications'); setShowNotifications(false); }}
+                          className="text-[10px] font-bold text-stone-500 hover:text-stone-800"
+                        >
+                          {t('viewAllNotifications')}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Chatbot */}
+            {/* AI Production Copilot */}
             <button
-              onClick={e => { e.stopPropagation(); setIsChatOpen(true); }}
-              className="p-2 rounded-full border border-[#2C742F]/10 bg-white/40 hover:bg-white/70 text-[#1C1B1F] transition-colors"
+              onClick={() => setChatOpen(true)}
+              className="relative p-2 rounded-full border border-[#2C742F]/10 bg-white/40 hover:bg-white/70 text-[#1C1B1F] transition-colors focus:outline-none"
               title="Production Copilot"
             >
               <Bot className="w-4 h-4" />
@@ -427,81 +632,96 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             {/* Settings */}
             <button
               onClick={() => router.push('/settings/profile')}
-              className="p-2 rounded-full border border-[#2C742F]/10 bg-white/40 hover:bg-white/70 text-[#1C1B1F] transition-colors"
+              className="relative p-2 rounded-full border border-[#2C742F]/10 bg-white/40 hover:bg-white/70 text-[#1C1B1F] transition-colors focus:outline-none hidden sm:flex"
               title="Settings"
             >
-              <SettingsIcon className="w-4 h-4" />
+              <Settings className="w-4 h-4" />
             </button>
 
-            <div className="w-px h-6 bg-[#2C742F]/15 mx-1" />
+            {/* Profile Dropdown */}
+            {user && (
+              <div className="relative">
+                <button
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="flex items-center gap-2 sm:gap-3 p-1 pr-2 sm:pr-3 rounded-full hover:bg-white/40 transition-all focus:outline-none"
+                >
+                  <img
+                    src={user.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"}
+                    alt={user.name}
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-[#2C742F]/20"
+                  />
+                  <div className="hidden md:flex flex-col text-left">
+                    <span className="text-sm font-bold text-[#1C1B1F] leading-tight">{user.name}</span>
+                    <span className="text-[10px] text-[#79747E] font-semibold leading-none">{getDisplayRole(user.role)}</span>
+                  </div>
+                  <div className="w-6 h-6 rounded-full border border-stone-300 bg-white/40 hidden sm:flex items-center justify-center">
+                    <ChevronDown className="w-3.5 h-3.5 text-[#79747E]" />
+                  </div>
+                </button>
 
-            {/* Profile */}
-            <div className="relative">
-              <button
-                onClick={e => { e.stopPropagation(); setShowProfileMenu(!showProfileMenu); setShowNotifications(false); }}
-                className="flex items-center gap-2 p-1 pr-2.5 rounded-full hover:bg-white/40 transition-all"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#2C742F] flex items-center justify-center text-white text-sm font-bold border-2 border-white/30 overflow-hidden shrink-0">
-                  {userAvatar
-                    ? <img src={userAvatar} alt={user.name} className="w-full h-full object-cover" />
-                    : user.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="hidden md:flex flex-col text-left">
-                  <span className="text-sm font-bold text-[#1C1B1F] leading-tight">{user.name}</span>
-                  <span className="text-[10px] text-[#79747E] font-semibold">{user.role}</span>
-                </div>
-                <ChevronDown className={`w-3.5 h-3.5 text-[#79747E] transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
-              </button>
-
-              <AnimatePresence>
-                {showProfileMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-52 bg-white/95 backdrop-blur-md border border-stone-200/50 rounded-2xl shadow-xl z-50 overflow-hidden"
-                    >
-                      <div className="p-1 space-y-0.5">
-                        <button onClick={() => { router.push('/settings/profile'); setShowProfileMenu(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-stone-700 hover:text-stone-900 hover:bg-[#D7E5D8]/60 rounded-xl transition-all font-semibold text-sm text-left">
-                          <User className="w-4 h-4 text-blue-500 shrink-0" /><span>Manage Account</span>
-                        </button>
-                        <button onClick={() => { router.push('/settings/profile?tab=password'); setShowProfileMenu(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-stone-700 hover:text-stone-900 hover:bg-[#D7E5D8]/60 rounded-xl transition-all font-semibold text-sm text-left">
-                          <Key className="w-4 h-4 text-purple-500 shrink-0" /><span>Change Password</span>
-                        </button>
-                        <button onClick={() => { router.push('/settings/audit'); setShowProfileMenu(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-stone-700 hover:text-stone-900 hover:bg-[#D7E5D8]/60 rounded-xl transition-all font-semibold text-sm text-left">
-                          <Activity className="w-4 h-4 text-orange-500 shrink-0" /><span>Activity Log</span>
-                        </button>
-                        <div className="h-px bg-stone-200/60 my-1 mx-2" />
-                        <button onClick={logout}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-[#EA4B48] hover:bg-red-50 rounded-xl transition-all font-semibold text-sm text-left">
-                          <LogOut className="w-4 h-4 shrink-0" /><span>Log out</span>
-                        </button>
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
+                <AnimatePresence>
+                  {isProfileOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-2.5 w-52 bg-[#F2F7ED]/95 backdrop-blur-md border border-stone-200/50 rounded-2xl shadow-xl z-50 overflow-hidden text-left"
+                      >
+                        <div className="p-1 space-y-0.5">
+                          <button
+                            onClick={() => { setIsProfileOpen(false); router.push('/settings/profile'); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-stone-700 hover:text-stone-900 hover:bg-white/60 rounded-xl transition-all font-semibold text-sm text-left"
+                          >
+                            <User className="w-4.5 h-4.5 text-[#5A94E2] shrink-0" />
+                            <span>{t('manageAccount')}</span>
+                          </button>
+                          <button
+                            onClick={() => { setIsProfileOpen(false); router.push('/settings/profile?tab=password'); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-stone-700 hover:text-stone-900 hover:bg-white/60 rounded-xl transition-all font-semibold text-sm text-left"
+                          >
+                            <Key className="w-4.5 h-4.5 text-[#2C742F] shrink-0" />
+                            <span>{t('changePassword')}</span>
+                          </button>
+                          <button
+                            onClick={() => { setIsProfileOpen(false); router.push('/audit-trail'); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-stone-700 hover:text-stone-900 hover:bg-white/60 rounded-xl transition-all font-semibold text-sm text-left"
+                          >
+                            <Activity className="w-4.5 h-4.5 text-[#79747E] shrink-0" />
+                            <span>{t('activityLog')}</span>
+                          </button>
+                          <div className="h-[1px] bg-stone-200/60 my-1 mx-2" />
+                          <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-stone-700 hover:text-stone-900 hover:bg-white/60 rounded-xl transition-all font-semibold text-sm text-left"
+                          >
+                            <LogOut className="w-4.5 h-4.5 text-[#EA4B48] shrink-0" />
+                            <span>{t('logOut')}</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 p-6 md:p-8 relative overflow-y-auto">
+        {/* Dashboard Content */}
+        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
-            {children}
+              {children}
           </div>
         </main>
       </div>
 
+      {/* Copilot Chat Overlay */}
       <ChatbotOverlay
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
         messages={chatMessages}
         setMessages={setChatMessages}
       />

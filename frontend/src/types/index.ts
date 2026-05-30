@@ -1,11 +1,55 @@
-export type UserRole = 'Operator' | 'QC' | 'PPIC' | 'Admin';
+export type UserRole = 'Operator' | 'QC' | 'PPIC' | 'Admin' | 'ADMIN' | 'QUALITY_CONTROL' | 'WAREHOUSE_STAFF';
 
 export interface User {
-  id: number;
+  id: number | string;
   name: string;
   email: string;
   role: UserRole;
   avatar?: string | null;
+}
+
+export type AromaItemStatus = 'Excellent' | 'Aged' | 'Low Stock' | 'Testing' | 'Expired';
+
+export interface AromaItem {
+  id: string;
+  name: string;
+  batchCode: string;
+  category: string;
+  stockQuantity: number;
+  unit: string;
+  storageLocation: string;
+  status: AromaItemStatus;
+  temperature: number;
+  humidity: number;
+  lastUpdated: string;
+}
+
+export type IngestionStatus = 'Testing' | 'Passed' | 'Rejected';
+
+export interface IngestionRecord {
+  id: string;
+  itemName: string;
+  batchCode: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  receivedDate: string;
+  inspectorName: string;
+  status: IngestionStatus;
+  notes: string;
+}
+
+export type AlertLevel = 'Normal' | 'Warning' | 'Critical';
+
+export interface WarehouseZone {
+  id: string;
+  name: string;
+  description: string;
+  capacityUsed: number;
+  maxCapacity: number;
+  temperature: number;
+  humidity: number;
+  alertLevel: AlertLevel;
 }
 
 export type InventoryStatus = 'Aman' | 'Warning' | 'Kritis' | 'Expired';
@@ -51,6 +95,7 @@ export interface AuditLog {
   action: string;
   detail: string;
   module: string;
+  avatar?: string | null;
 }
 
 export interface TemperatureReading {
@@ -69,6 +114,7 @@ export interface Notification {
   description: string;
   time: string;
   isRead: boolean;
+  href?: string;
 }
 
 export interface ChatMessage {

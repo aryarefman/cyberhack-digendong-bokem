@@ -88,7 +88,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // PUT /api/inventory
-router.put('/', requireRole(['QC', 'Admin']), async (req, res) => {
+router.put('/', requireAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -142,7 +142,7 @@ router.put('/', requireRole(['QC', 'Admin']), async (req, res) => {
 });
 
 // DELETE /api/inventory
-router.delete('/', requireRole(['QC', 'Admin']), async (req, res) => {
+router.delete('/', requireRole(['QC', 'Admin', 'PPIC']), async (req, res) => {
   const { id, userName = 'Unknown', userRole = 'Operator' } = req.query;
 
   if (!id) {

@@ -3,68 +3,192 @@
 @tailwind utilities;
 
 :root {
-  --sage-bg: #D7E5D8;
-  --sage-green: #2C742F;
-  --sage-mint: #CBEAD2;
-  --sage-lime: #AAE970;
-  --sage-grey: #79747E;
-  --sage-charcoal: #1C1B1F;
+  --color-primary: #2C742F;
+  --color-background: #D7E5D8;
+  --color-accent: #AAE970;
+  --color-text: #1C1B1F;
+  --color-text-secondary: #79747E;
+  --color-surface: #F2F7ED;
+  --color-border: rgba(44, 116, 47, 0.1);
+  --color-status-critical: #EA4B48;
+  --color-status-warning: #F59E0B;
+  --color-status-safe: #2C742F;
 }
 
-/* Custom Scrollbars */
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  overflow-x: hidden;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Custom Scrollbars - Hikari theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #D7E5D8;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2C742F55;
+  background: rgba(44, 116, 47, 0.2);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2C742F99;
+  background: rgba(44, 116, 47, 0.35);
 }
 
-/* Shimmer animation for skeleton loaders */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(44, 116, 47, 0.15);
+  border-radius: 9999px;
+}
+
+/* Fade-in animation utility */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Button base styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #245f27;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(44, 116, 47, 0.25);
+}
+
+.btn-secondary {
+  background-color: white;
+  color: var(--color-text);
+  border: 1px solid rgba(44, 116, 47, 0.15);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #f0f5f0;
+  border-color: rgba(44, 116, 47, 0.3);
+}
+
+.btn-danger {
+  background-color: var(--color-status-critical);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #d43d3a;
+}
+
+/* Card styles */
+.card {
+  background: white;
+  border: 1px solid rgba(44, 116, 47, 0.08);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Glass panel - Hikari sage theme */
+.glass-panel {
+  background: rgba(242, 247, 237, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(44, 116, 47, 0.08);
+  border-radius: 1rem;
+}
+
+/* Input styles */
+.input {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(44, 116, 47, 0.15);
+  background: white;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(44, 116, 47, 0.1);
+}
+
+.input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+
+/* Badge styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-success {
+  background: rgba(44, 116, 47, 0.1);
+  color: var(--color-primary);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+}
+
+.badge-danger {
+  background: rgba(234, 75, 72, 0.1);
+  color: var(--color-status-critical);
+}
+
+/* Shimmer loaders */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
 .shimmer-effect {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.4) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  background: linear-gradient(90deg, rgba(44, 116, 47, 0) 0%, rgba(44, 116, 47, 0.04) 50%, rgba(44, 116, 47, 0) 100%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite linear;
-}
-
-/* Spinner for loading states */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.spinner {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(44, 116, 47, 0.2);
-  border-top-color: #2C742F;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-/* Text gradient utility */
-.text-sage-gradient {
-  background: linear-gradient(135deg, #2C742F 0%, #AAE970 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  animation: shimmer 2s infinite linear;
 }

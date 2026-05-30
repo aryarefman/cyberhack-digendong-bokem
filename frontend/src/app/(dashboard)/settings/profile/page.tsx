@@ -1,16 +1,19 @@
 'use client';
 import { useState, useEffect, useRef, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
+import { useLanguage } from '@/lib/i18n';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Key, Bell, Save, Check, X, AlertCircle, Camera } from 'lucide-react';
+import { User, Key, Bell, Save, Check, X, AlertCircle, Camera, LogOut } from 'lucide-react';
 import { api } from '@/lib/api';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
 const MAX_SIZE = 2 * 1024 * 1024;
 
 function ProfileContent() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const { t } = useLanguage();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'account');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -33,7 +36,7 @@ function ProfileContent() {
     if (tab && ['account', 'password', 'notifications'].includes(tab)) setActiveTab(tab);
   }, [searchParams]);
 
-  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 4000); return () => clearTimeout(t); } }, [toast]);
+  useEffect(() => { if (toast) { const timer = setTimeout(() => setToast(null), 4000); return () => clearTimeout(timer); } }, [toast]);
 
   function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -63,33 +66,42 @@ function ProfileContent() {
         if (data.user.avatar) setCurrentAvatar(data.user.avatar);
         window.dispatchEvent(new Event('aromasys_avatar_updated'));
         setAvatarPreview(null); setAvatarBase64(null);
-        setToast({ msg: 'Profile updated!', type: 'success' });
-      } else setToast({ msg: 'Failed to update profile.', type: 'error' });
-    } catch { setToast({ msg: 'Failed to connect to server.', type: 'error' }); }
+        setToast({ msg: t('updateProfileSuccess'), type: 'success' });
+      } else setToast({ msg: t('updateProfileFail'), type: 'error' });
+    } catch { setToast({ msg: t('updateProfileFail'), type: 'error' }); }
     finally { setIsSaving(false); }
   }
 
   async function savePassword(e: React.FormEvent) {
     e.preventDefault();
     setPwError(null);
-    if (pwData.newPassword.length < 8) { setPwError('Password minimal 8 karakter.'); return; }
-    if (pwData.newPassword !== pwData.confirm) { setPwError('Password tidak cocok.'); return; }
+    if (pwData.newPassword.length < 8) { setPwError(t('passwordMinLength')); return; }
+    if (pwData.newPassword !== pwData.confirm) { setPwError(t('passwordNoMatch')); return; }
     setIsSaving(true);
     try {
       const data = await api.put<{ success: boolean; error?: string }>('/profile', { currentPassword: pwData.current, newPassword: pwData.newPassword });
-      if (data.success) { setPwData({ current: '', newPassword: '', confirm: '' }); setToast({ msg: 'Password changed!', type: 'success' }); }
+      if (data.success) { setPwData({ current: '', newPassword: '', confirm: '' }); setToast({ msg: t('changePasswordSuccess'), type: 'success' }); }
       else setToast({ msg: data.error ?? 'Failed to change password.', type: 'error' });
     } catch { setToast({ msg: 'Failed to connect.', type: 'error' }); }
     finally { setIsSaving(false); }
   }
 
+  function handleLogout() {
+    logout();
+    router.push('/login');
+  }
+
   const inputCls = "w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm text-[#1C1B1F] focus:outline-none focus:ring-1 focus:ring-[#2C742F]/30 bg-white";
   const avatarSrc = avatarPreview ?? currentAvatar;
-  const tabs = [{ key: 'account', label: 'Account', icon: User }, { key: 'password', label: 'Password', icon: Key }, { key: 'notifications', label: 'Notifications', icon: Bell }];
+  const tabs = [
+    { key: 'account', label: t('tabAccount'), icon: User },
+    { key: 'password', label: t('tabPassword'), icon: Key },
+    { key: 'notifications', label: t('notifications'), icon: Bell },
+  ];
 
   return (
     <div className="max-w-2xl space-y-6 pb-16">
-      <h1 className="text-2xl font-extrabold text-[#1C1B1F]">Profile Settings</h1>
+      <h1 className="text-2xl font-extrabold text-[#1C1B1F]">{t('profileSettings')}</h1>
 
       {/* Tab nav */}
       <div className="flex gap-1 bg-stone-100 rounded-2xl p-1">
@@ -130,21 +142,27 @@ function ProfileContent() {
 
           <form onSubmit={saveProfile} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-[#79747E] block mb-1">Full Name</label>
+              <label className="text-xs font-semibold text-[#79747E] block mb-1">{t('fullName')}</label>
               <input value={profileData.name} onChange={e => setProfileData(d => ({ ...d, name: e.target.value }))} required className={inputCls} />
             </div>
             <div>
-              <label className="text-xs font-semibold text-[#79747E] block mb-1">Email</label>
+              <label className="text-xs font-semibold text-[#79747E] block mb-1">{t('emailLabel')}</label>
               <input type="email" value={profileData.email} onChange={e => setProfileData(d => ({ ...d, email: e.target.value }))} required className={inputCls} />
             </div>
             <div>
-              <label className="text-xs font-semibold text-[#79747E] block mb-1">Role</label>
+              <label className="text-xs font-semibold text-[#79747E] block mb-1">{t('roleLabel')}</label>
               <input value={user?.role ?? ''} disabled className={`${inputCls} bg-stone-50 text-[#79747E] cursor-not-allowed`} />
             </div>
-            <button type="submit" disabled={isSaving}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#2C742F] hover:bg-[#366306] text-white font-bold text-sm transition-all disabled:opacity-50">
-              {isSaving ? <><div className="spinner" style={{ width: 16, height: 16, borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />Saving...</> : <><Save className="w-4 h-4" />Save Changes</>}
-            </button>
+            <div className="flex items-center gap-3 flex-wrap pt-1">
+              <button type="submit" disabled={isSaving}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#2C742F] hover:bg-[#366306] text-white font-bold text-sm transition-all disabled:opacity-50">
+                {isSaving ? <><div className="spinner" style={{ width: 16, height: 16, borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />{t('save')}...</> : <><Save className="w-4 h-4" />{t('saveChanges')}</>}
+              </button>
+              <button type="button" onClick={handleLogout}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-red-200 bg-white text-red-600 hover:bg-red-50 font-bold text-sm transition-all">
+                <LogOut className="w-4 h-4" />{t('logOut')}
+              </button>
+            </div>
           </form>
         </motion.div>
       )}
@@ -153,7 +171,7 @@ function ProfileContent() {
       {activeTab === 'password' && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl p-6 shadow-sm border border-stone-100 space-y-4">
-          <h2 className="font-bold text-[#1C1B1F]">Change Password</h2>
+          <h2 className="font-bold text-[#1C1B1F]">{t('changePasswordTitle')}</h2>
           {pwError && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-[#EA4B48] font-semibold">
               <AlertCircle className="w-4 h-4" />{pwError}
@@ -161,9 +179,9 @@ function ProfileContent() {
           )}
           <form onSubmit={savePassword} className="space-y-4">
             {[
-              { label: 'Current Password', key: 'current' },
-              { label: 'New Password', key: 'newPassword' },
-              { label: 'Confirm New Password', key: 'confirm' },
+              { label: t('currentPassword'), key: 'current' },
+              { label: t('newPasswordLabel'), key: 'newPassword' },
+              { label: t('confirmPassword'), key: 'confirm' },
             ].map(f => (
               <div key={f.key}>
                 <label className="text-xs font-semibold text-[#79747E] block mb-1">{f.label}</label>
@@ -172,7 +190,7 @@ function ProfileContent() {
             ))}
             <button type="submit" disabled={isSaving}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#2C742F] hover:bg-[#366306] text-white font-bold text-sm transition-all disabled:opacity-50">
-              {isSaving ? 'Saving...' : <><Key className="w-4 h-4" />Change Password</>}
+              {isSaving ? t('save') + '...' : <><Key className="w-4 h-4" />{t('changePasswordTitle')}</>}
             </button>
           </form>
         </motion.div>
@@ -182,7 +200,7 @@ function ProfileContent() {
       {activeTab === 'notifications' && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl p-6 shadow-sm border border-stone-100 space-y-4">
-          <h2 className="font-bold text-[#1C1B1F]">Notification Preferences</h2>
+          <h2 className="font-bold text-[#1C1B1F]">{t('notifications')}</h2>
           {[
             { key: 'email', label: 'Email Notifications', desc: 'Receive important updates via email' },
             { key: 'inApp', label: 'In-App Notifications', desc: 'Show notifications in the dashboard bell' },
@@ -200,8 +218,10 @@ function ProfileContent() {
               </label>
             </div>
           ))}
-          <button className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#2C742F] hover:bg-[#366306] text-white font-bold text-sm transition-all">
-            <Save className="w-4 h-4" />Save Preferences
+          <button
+            onClick={() => { setToast({ msg: 'Notification preferences saved!', type: 'success' }); }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#2C742F] hover:bg-[#366306] text-white font-bold text-sm transition-all">
+            <Save className="w-4 h-4" />{t('saveChanges')}
           </button>
         </motion.div>
       )}

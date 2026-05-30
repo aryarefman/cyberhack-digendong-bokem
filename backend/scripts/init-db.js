@@ -89,6 +89,9 @@ async function init() {
   
   try {
     console.log('Dropping existing tables if any...');
+    await client.query('DROP TABLE IF EXISTS app_settings CASCADE;');
+    await client.query('DROP TABLE IF EXISTS qc_inspections CASCADE;');
+    await client.query('DROP TABLE IF EXISTS notification_reads CASCADE;');
     await client.query('DROP TABLE IF EXISTS maintenance_tickets CASCADE;');
     await client.query('DROP TABLE IF EXISTS temperature_readings CASCADE;');
     await client.query('DROP TABLE IF EXISTS audit_logs CASCADE;');
@@ -109,6 +112,16 @@ async function init() {
       );
     `);
     
+    await client.query(`
+      CREATE TABLE app_settings (
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        settings_key VARCHAR(100) NOT NULL,
+        settings_value JSONB NOT NULL DEFAULT '{}',
+        updated_at TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY (user_id, settings_key)
+      );
+    `);
+
     await client.query(`
       CREATE TABLE inventory (
         id VARCHAR(50) PRIMARY KEY,
@@ -167,6 +180,30 @@ async function init() {
         created_by VARCHAR(100) NOT NULL,
         created_at TIMESTAMP DEFAULT NOW(),
         status VARCHAR(20) DEFAULT 'open'
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE notification_reads (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        notification_id VARCHAR(100) NOT NULL,
+        read_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, notification_id)
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE qc_inspections (
+        id SERIAL PRIMARY KEY,
+        material_id VARCHAR(100) NOT NULL,
+        material_type VARCHAR(50) NOT NULL,
+        result VARCHAR(10) NOT NULL,
+        confidence DECIMAL(5, 2) NOT NULL,
+        notes TEXT,
+        image TEXT,
+        inspected_by INTEGER REFERENCES users(id),
+        inspected_at TIMESTAMP DEFAULT NOW()
       );
     `);
     

@@ -3,15 +3,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import {
-  LayoutDashboard, Map, Thermometer, CalendarClock,
-  Upload, FileBarChart, Database, ShieldCheck, LogOut, Leaf, Bell, User,
+  LayoutDashboard, Map, Thermometer, Calendar,
+  Database, FileSpreadsheet, Layers, ShieldCheck,
+  LogOut, User, Users, Microscope,
 } from 'lucide-react';
 
 interface MenuItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  requireAudit?: boolean;
 }
 
 interface MenuGroup {
@@ -22,37 +22,40 @@ interface MenuGroup {
 const MENU_GROUPS: MenuGroup[] = [
   {
     group: 'MAIN',
-    items: [{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }],
+    items: [
+      { label: 'Dashboard', href: '/overview', icon: LayoutDashboard },
+      { label: 'Floor Plan', href: '/floor-plan', icon: Map },
+    ],
   },
   {
     group: 'WAREHOUSE',
     items: [
-      { label: 'Interactive Floor Plan', href: '/digital-twin/floor-plan', icon: Map },
-      { label: 'FIFO & Expiry', href: '/digital-twin/fifo-expiry', icon: CalendarClock },
-      { label: 'Cold-Chain Monitor', href: '/digital-twin/cold-chain', icon: Thermometer },
+      { label: 'Inventory Master', href: '/inventory-master', icon: Layers },
+      { label: 'FIFO & Expiry', href: '/fifo-expiry', icon: Calendar },
+      { label: 'Cold-Chain Monitor', href: '/cold-chain', icon: Thermometer },
+      { label: 'Data Ingestion', href: '/data-ingestion', icon: Database },
     ],
   },
   {
     group: 'PRODUCTION',
     items: [
-      { label: 'Data Ingestion', href: '/copilot/upload', icon: Upload },
-      { label: 'Auto-Report', href: '/copilot/report', icon: FileBarChart },
+      { label: 'Auto-Report', href: '/auto-report', icon: FileSpreadsheet },
+      { label: 'Audit Trail', href: '/audit-trail', icon: ShieldCheck },
+      { label: 'AI Quality Control', href: '/qc', icon: Microscope },
     ],
   },
   {
     group: 'SETTINGS',
     items: [
-      { label: 'Profile', href: '/settings/profile', icon: User },
-      { label: 'Notifications', href: '/settings/notifications', icon: Bell },
-      { label: 'Inventory Master', href: '/settings/inventory', icon: Database },
-      { label: 'Audit Trail', href: '/settings/audit', icon: ShieldCheck, requireAudit: true },
+      { label: 'Profile & Settings', href: '/settings/profile', icon: User },
+      { label: 'User Management', href: '/user-management', icon: Users },
     ],
   },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { user, logout, canViewAudit } = useAuth();
+  const { user, logout } = useAuth();
 
   if (!user) return null;
 
@@ -60,10 +63,8 @@ export default function Sidebar() {
     <aside className="hidden lg:flex flex-col w-64 bg-[#2C742F] border-r border-[#2C742F]/10 h-full shrink-0">
       {/* Brand */}
       <div className="h-16 border-b border-white/10 flex flex-col items-center justify-center shrink-0">
-        <Link href="/dashboard" className="flex items-center gap-2 justify-center">
-          <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
-            <Leaf className="w-5 h-5 text-white" />
-          </div>
+        <Link href="/overview" className="flex items-center gap-2 justify-center">
+          <img src="/logo-cerah.png" alt="AromaSys" className="w-6 h-6 object-contain" />
           <span className="font-semibold text-2xl text-emerald-50 leading-none">AromaSys</span>
         </Link>
         <div className="text-[#AAE970] text-[10px] font-bold uppercase tracking-widest mt-1">
@@ -73,39 +74,35 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-6 space-y-5 overflow-y-auto">
-        {MENU_GROUPS.map(group => {
-          const visibleItems = group.items.filter(item => !item.requireAudit || canViewAudit());
-          if (visibleItems.length === 0) return null;
-          return (
-            <div key={group.group} className="space-y-1">
-              <div className="px-4 py-1">
-                <span className="text-green-200 text-xs font-bold uppercase tracking-wider opacity-70">
-                  {group.group}
-                </span>
-              </div>
-              <div className="space-y-0.5">
-                {visibleItems.map(item => {
-                  const isActive = pathname === item.href;
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`w-full px-4 py-2.5 flex items-center gap-3.5 transition-all text-sm font-semibold group relative ${
-                        isActive
-                          ? 'text-[#CBEAD2] bg-white/10 rounded-l-xl rounded-r-none border-r-4 border-[#BCF389]'
-                          : 'text-green-200/80 hover:text-white hover:bg-white/5 rounded-xl'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#CBEAD2]' : 'text-green-200/70 group-hover:text-green-100'}`} />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
+        {MENU_GROUPS.map(group => (
+          <div key={group.group} className="space-y-1">
+            <div className="px-4 py-1">
+              <span className="text-green-200 text-xs font-bold uppercase tracking-wider opacity-70">
+                {group.group}
+              </span>
             </div>
-          );
-        })}
+            <div className="space-y-0.5">
+              {group.items.map(item => {
+                const isActive = pathname === item.href;
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`w-full px-4 py-2.5 flex items-center gap-3.5 transition-all text-sm font-semibold group relative ${
+                      isActive
+                        ? 'text-[#CBEAD2] bg-white/10 rounded-l-xl rounded-r-none border-r-4 border-[#BCF389]'
+                        : 'text-green-200/80 hover:text-white hover:bg-white/5 rounded-xl'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#CBEAD2]' : 'text-green-200/70 group-hover:text-green-100'}`} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}

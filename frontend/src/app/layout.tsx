@@ -1,45 +1,37 @@
-import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import type { Metadata } from "next";
+import { Poppins } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/lib/auth";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { AuthProvider } from '@/lib/auth';
+import { ToastProvider } from '@/lib/toast';
+import ToastContainer from '@/components/ToastContainer';
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const poppins = Poppins({
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
-  title: "AromaSys — Warehouse Management & Intelligence Platform",
-  description:
-    "Platform manajemen gudang berbasis web dengan Digital Twin, LLM Production Copilot, dan Enterprise Settings untuk industri produksi aroma dan parfum.",
-  keywords:
-    "warehouse management, digital twin, cold chain, inventory, FIFO, audit trail, aromasys",
-  authors: [{ name: "AromaSys Team" }],
-  openGraph: {
-    title: "AromaSys — Warehouse Management & Intelligence Platform",
-    description: "Platform manajemen gudang cerdas untuk industri aroma dan parfum",
-    type: "website",
-  },
-};
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  themeColor: "#366306",
+  title: "AromaSys",
+  description: "Next-generation digital inventory and organic aroma batch telemetry tracking platform.",
+  icons: {
+    icon: "/logo-cerah.png",
+  }
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="id" className="scroll-smooth">
-      <body
-        className={`${plusJakartaSans.variable} font-sans antialiased min-h-screen`}
-        suppressHydrationWarning={true}
-      >
+    <html lang="en" className="scroll-smooth">
+      <body className={`${poppins.variable} font-sans antialiased bg-[#D7E5D8] text-[#1C1B1F] min-h-screen relative`}>
         <AuthProvider>
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <ToastProvider>
+            {children}
+            <ToastContainer />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
