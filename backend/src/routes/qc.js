@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
+import axios from 'axios';
+import { GoogleGenAI } from '@google/genai';
 import pool from '../lib/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
@@ -10,7 +12,7 @@ const router = Router();
 const inspectValidation = [
   body('materialId').notEmpty().withMessage('materialId is required'),
   body('materialType').notEmpty().withMessage('materialType is required')
-    .isIn(['fruit', 'raw-material', 'extract', 'powder']).withMessage('materialType must be one of: fruit, raw-material, extract, powder'),
+    .isIn(['fruit', 'raw-material', 'extract', 'powder', 'plant']).withMessage('materialType must be one of: fruit, raw-material, extract, powder, plant'),
   body('result').notEmpty().withMessage('result is required')
     .isIn(['pass', 'fail']).withMessage('result must be "pass" or "fail"'),
   body('confidence').notEmpty().withMessage('confidence is required')
@@ -120,6 +122,136 @@ router.get('/history', requireAuth, async (req, res) => {
     return res.json({ success: true, inspections });
   } catch (error) {
     console.error('Error fetching QC history:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Validation for /analyze
+const analyzeValidation = [
+  body('imageBase64').notEmpty().withMessage('imageBase64 is required'),
+  body('materialId').notEmpty().withMessage('materialId is required'),
+  body('materialType').notEmpty().withMessage('materialType is required')
+    .isIn(['fruit', 'raw-material', 'extract', 'powder', 'plant']).withMessage('materialType must be one of: fruit, raw-material, extract, powder, plant'),
+];
+
+// POST /api/qc/analyze - Roboflow + Gemini Integration
+router.post('/analyze', requireAuth, validate(analyzeValidation), async (req, res) => {
+  try {
+    const { imageBase64, materialId, materialType, autoSave = true } = req.body;
+    
+    // Clean base64 string if it has data URI prefix
+    let base64Data = imageBase64;
+    if (imageBase64.includes('base64,')) {
+      base64Data = imageBase64.split('base64,')[1];
+    }
+
+    // 1. Call Roboflow Serverless API (Concurrent Models)
+    let predictions = [];
+    try {
+      const plantModelUrl = `https://serverless.roboflow.com/plants-diseases-detection-and-classification/12?api_key=${process.env.ROBOFLOW_API_KEY}`;
+      const fruitModelUrl = `https://serverless.roboflow.com/rotten-fruit-detector/3?api_key=${process.env.ROBOFLOW_API_KEY}`;
+      
+      const [plantResponse, fruitResponse] = await Promise.allSettled([
+        axios({ method: "POST", url: plantModelUrl, data: base64Data, headers: { "Content-Type": "application/x-www-form-urlencoded" } }),
+        axios({ method: "POST", url: fruitModelUrl, data: base64Data, headers: { "Content-Type": "application/x-www-form-urlencoded" } })
+      ]);
+
+      const plantPredictions = plantResponse.status === 'fulfilled' ? (plantResponse.value.data.predictions || []) : [];
+      const fruitPredictions = fruitResponse.status === 'fulfilled' ? (fruitResponse.value.data.predictions || []) : [];
+
+      // Filter predictions below 40% confidence and tag their source model
+      const validPlant = plantPredictions.filter(p => p.confidence > 0.40).map(p => ({ ...p, modelSource: 'plant' }));
+      const validFruit = fruitPredictions.filter(p => p.confidence > 0.40).map(p => ({ ...p, modelSource: 'fruit' }));
+
+      predictions = [...validPlant, ...validFruit];
+    } catch (roboflowError) {
+      console.error("Roboflow Error:", roboflowError.message);
+      throw new Error("Failed to process image with Roboflow Vision API");
+    }
+
+    // 2. Logic-based Analysis
+    let status = 'ACCEPTED';
+    let reason = '';
+    const toxicKeywords = ['spot', 'rot', 'rotten', 'blight', 'scab', 'disease', 'mildew', 'rust', 'bad', 'defect'];
+    
+    // Determine the dominant material type based on predictions
+    const plantCount = predictions.filter(p => p.modelSource === 'plant').length;
+    const fruitCount = predictions.filter(p => p.modelSource === 'fruit').length;
+    
+    let actualMaterialType = materialType;
+    if (plantCount > fruitCount && plantCount > 0) {
+      actualMaterialType = 'plant';
+    } else if (fruitCount >= plantCount && fruitCount > 0) {
+      actualMaterialType = 'fruit';
+    }
+
+    const roboflowClasses = predictions.map(p => p.class);
+
+    // Calculate average confidence
+    const totalConfidence = predictions.reduce((sum, p) => sum + (p.confidence || 0), 0);
+    const avgConfidence = predictions.length > 0 ? (totalConfidence / predictions.length) * 100 : 0;
+
+    // Check for diseases
+    const hasDisease = roboflowClasses.some(className => 
+      toxicKeywords.some(keyword => className.toLowerCase().includes(keyword))
+    );
+
+    if (predictions.length === 0) {
+      status = 'REJECTED';
+      reason = 'Material ditolak karena tidak ada objek terdeteksi yang relevan.';
+    } else if (hasDisease) {
+      status = 'REJECTED';
+      reason = `Material ditolak karena terindikasi mengandung defek/penyakit (${roboflowClasses.join(', ')}).`;
+    } else {
+      status = 'ACCEPTED';
+      reason = `Material diterima. Kondisi terpantau sehat (${roboflowClasses.join(', ')}).`;
+    }
+
+    const dbResult = status === 'ACCEPTED' ? 'pass' : 'fail';
+    const confidence = avgConfidence; // Use actual average confidence
+
+    let inspectionId = null;
+
+    if (autoSave) {
+      // 3. Log to Database
+      const inspectedBy = req.user?.id || null;
+      const insertResult = await pool.query(
+        `INSERT INTO qc_inspections (material_id, material_type, result, confidence, notes, image, inspected_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [materialId, actualMaterialType, dbResult, confidence, reason, imageBase64, inspectedBy]
+      );
+      inspectionId = insertResult.rows[0].id;
+
+      // Create audit trail entry
+      const username = req.user?.name || 'System';
+      const role = req.user?.role || 'Unknown';
+      await pool.query(
+        'INSERT INTO audit_logs (timestamp, username, role, action, detail, module) VALUES ($1, $2, $3, $4, $5, $6)',
+        [
+          new Date().toISOString().replace('T', ' ').substring(0, 16),
+          username,
+          role,
+          'QC AI Analysis',
+          `QC AI Analysis for ${actualMaterialType} (${materialId}): ${status} - ${reason}`,
+          'QC'
+        ]
+      );
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        status,
+        reason,
+        inspectionId,
+        roboflowClasses: roboflowClasses,
+        predictions // Send full predictions array for bounding boxes
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in /analyze endpoint:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });

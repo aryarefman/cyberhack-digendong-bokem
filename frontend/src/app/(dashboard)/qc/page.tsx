@@ -16,15 +16,15 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { callAI } from "@/lib/gemini";
 import { useLanguage } from "@/lib/i18n";
 
 type MaterialTab = "fruit-raw" | "extract-powder";
 
 interface QCResult {
-  result: "pass" | "fail";
-  confidence: number;
-  notes: string;
+  status: "ACCEPTED" | "REJECTED";
+  reason: string;
+  roboflowClasses?: string[];
+  predictions?: any[];
 }
 
 interface InspectionRecord {
@@ -47,6 +47,7 @@ export default function QCPage() {
   const [qcResult, setQcResult] = useState<QCResult | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [autoSave, setAutoSave] = useState(false);
   const [history, setHistory] = useState<InspectionRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export default function QCPage() {
   const [manualResult, setManualResult] = useState<"pass" | "fail">("pass");
   const [manualConfidence, setManualConfidence] = useState(80);
   const [manualNotes, setManualNotes] = useState("");
+  const [imageDimensions, setImageDimensions] = useState<{width: number, height: number} | null>(null);
 
   // Camera state
   const [cameraActive, setCameraActive] = useState(false);
@@ -146,9 +148,13 @@ export default function QCPage() {
       setError("Silakan ambil gambar atau upload file terlebih dahulu.");
       return;
     }
-    if (!materialId.trim()) {
-      setError("Silakan masukkan Material/Batch ID.");
-      return;
+    
+    let currentMaterialId = materialId.trim();
+    if (!currentMaterialId) {
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+      currentMaterialId = `MAT-${dateStr}-${randomStr}`;
+      setMaterialId(currentMaterialId);
     }
 
     setIsInspecting(true);
@@ -157,155 +163,58 @@ export default function QCPage() {
     setSaveSuccess(false);
 
     try {
-      // 1. Fetch product context from database
-      let productContext = "";
-      let historicalQC = "";
-      try {
-        // Get inventory item details
-        const invRes = await api.get<{ success: boolean; items: any[] }>("/inventory");
-        if (invRes.success && invRes.items) {
-          const product = invRes.items.find((item: any) => 
-            item.id === materialId || item.name === materialId
-          );
-          if (product) {
-            productContext = `
-Product Details:
-- Name: ${product.name}
-- Category: ${product.category}
-- Current Stock: ${product.qty} ${product.unit}
-- Stored in Zone: ${product.zone}
-- Date In: ${product.dateIn}
-- Expiry: ${product.expiry}
-- Current Status: ${product.status}
-- Last QC Notes: ${product.lastQCNotes || 'None'}
-`;
-          }
-        }
-
-        // Get historical QC results for this material
-        const qcHistRes = await api.get<{ success: boolean; inspections: any[] }>("/qc/history");
-        if (qcHistRes.success && qcHistRes.inspections) {
-          const pastQCs = qcHistRes.inspections
-            .filter((rec: any) => rec.materialId === materialId)
-            .slice(-3); // Last 3 QC records
-          if (pastQCs.length > 0) {
-            historicalQC = `\nPast QC Records (for reference):
-${pastQCs.map((qc: any) => `- ${qc.inspectedAt}: Result=${qc.result} (Confidence: ${qc.confidence}%) - ${qc.notes}`).join('\n')}`;
-          }
-        }
-      } catch {
-        // Silently continue without product context if API fails
-      }
-
-      // 2. Get temperature data from zone if available
-      let zoneContext = "";
-      try {
-        const tempRes = await api.get<any>("/cold-chain");
-        if (tempRes.temperatures) {
-          // Parse zone from product data or use default
-          const zone = materialId.charAt(0).toUpperCase() || 'A';
-          const zoneTemps = tempRes.temperatures[zone];
-          if (zoneTemps && zoneTemps.length > 0) {
-            zoneContext = `\nCurrent Storage Conditions:
-- Zone Temperature: ${zoneTemps[0]?.toFixed(1) || 'N/A'}°C (Latest reading)
-- Environment may affect material quality`;
-          }
-        }
-      } catch {
-        // Silently continue without temperature data
-      }
-
-      // 3. Build comprehensive quality standards based on material type
-      const materialLabel = activeTab === "fruit-raw" ? "fruit/raw material" : "extract/powder";
-      const categoryStandards = {
-        "Kimia": "Must have uniform color, no powder separation, clean packaging",
-        "Pengawet": "Check for color consistency, no discoloration, proper sealing",
-        "Susu": "Creamy texture, uniform color, no lumps or separation",
-        "Cokelat": "Dark brown color, smooth texture, no white bloom or cracks",
-        "Tepung": "Fine texture, uniform color, no clumping or moisture",
-        "Gula": "Granular texture, white/brown uniformity, no caramelization",
-        "Minyak": "Clear appearance, proper viscosity, no separation",
-        "Pewarna": "Vibrant color, uniform concentration, no crystallization",
-        "Essence": "Clear/transparent, proper concentration, no separation",
-        "Rempah": "Rich color, aromatic indicators visible, no mold"
-      };
-
-      const prompt = `You are a professional quality control inspector for an aroma/botanical warehouse.
-Perform a detailed QC inspection on this ${materialLabel} material.
-
-${productContext}${historicalQC}${zoneContext}
-
-QUALITY STANDARDS FOR THIS MATERIAL TYPE:
-${categoryStandards['Kimia'] || 'Standard food-grade quality inspection'}
-
-INSPECTION CRITERIA (ranked by importance):
-1. Color: Consistency and expected hue for material type
-2. Texture: Uniformity, grain size, absence of lumps
-3. Cleanliness: No visible contamination, mold, or foreign objects
-4. Packaging/Condition: If visible - proper sealing, no damage
-5. Freshness Indicators: Signs of degradation based on storage time
-
-Based on the image, provide:
-- Overall Result: "pass" or "fail"
-- Confidence: 0-100 percentage (your certainty level)
-- Detailed Assessment: Specific observations about condition, risks, and recommendations
-
-Respond in JSON format: {
-  "result": "pass" or "fail",
-  "confidence": number 0-100,
-  "notes": "detailed findings including specific observations, any concerns, and recommendations"
-}
-
-Return ONLY valid JSON object, no markdown.`;
-
-      const response = await callAI(prompt, "qc", imageBase64, "image/jpeg");
-      // Parse JSON from response
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("AI response did not contain valid JSON");
-      }
-      const parsed = JSON.parse(jsonMatch[0]) as QCResult;
-      if (!parsed.result || !["pass", "fail"].includes(parsed.result)) {
-        throw new Error("Invalid result format from AI");
-      }
-      setQcResult({
-        result: parsed.result,
-        confidence: Math.min(100, Math.max(0, Number(parsed.confidence) || 0)),
-        notes: parsed.notes || "No additional notes.",
+      const response = await api.post<{ success: boolean, data: { status: "ACCEPTED" | "REJECTED", reason: string, inspectionId: number | null, roboflowClasses: string[], predictions: any[] }, error?: string }>("/qc/analyze", {
+        imageBase64,
+        materialId: currentMaterialId,
+        materialType,
+        autoSave
       });
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error || "Gagal memproses gambar");
+      }
+
+      setQcResult({
+        status: response.data.status as "ACCEPTED" | "REJECTED",
+        reason: response.data.reason,
+        roboflowClasses: response.data.roboflowClasses,
+        predictions: response.data.predictions
+      });
+      if (autoSave) {
+        setSaveSuccess(true);
+        fetchHistory();
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Terjadi kesalahan";
-      const isAIUnavailable = errMsg.includes("All Gemini models failed") || errMsg.includes("NEXT_PUBLIC_GEMINI_API_KEY");
-      setError(
-        isAIUnavailable
-          ? "Layanan AI sedang tidak tersedia. Silakan lakukan inspeksi manual: isi form di bawah untuk mencatat hasil QC secara manual tanpa AI."
-          : `Inspeksi gagal: ${errMsg}. Silakan coba lagi atau lakukan inspeksi manual.`
-      );
-      // Show manual inspection fallback when AI is unavailable
-      if (isAIUnavailable) {
-        setShowManualForm(true);
-      }
+      setError(`Inspeksi gagal: ${errMsg}.`);
     } finally {
       setIsInspecting(false);
     }
   };
 
   const saveToDatabase = async () => {
-    if (!qcResult) return;
+    if (!qcResult || !imageBase64 || !materialId) return;
     setIsSaving(true);
     try {
-      await api.post("/qc/inspect", {
+      let confidence = 80;
+      if (qcResult.predictions && qcResult.predictions.length > 0) {
+        confidence = qcResult.predictions.reduce((sum, p) => sum + p.confidence, 0) / qcResult.predictions.length * 100;
+      }
+      
+      const res = await api.post<{ success: boolean }>("/qc/inspect", {
         imageBase64,
+        materialId,
         materialType,
-        materialId: materialId.trim(),
-        result: qcResult.result,
-        confidence: qcResult.confidence,
-        notes: qcResult.notes,
+        result: qcResult.status === "ACCEPTED" ? "pass" : "fail",
+        confidence,
+        notes: qcResult.reason
       });
-      setSaveSuccess(true);
-      fetchHistory();
-    } catch {
-      setError("Gagal menyimpan hasil inspeksi ke database.");
+      if (res.success) {
+        setSaveSuccess(true);
+        fetchHistory();
+      }
+    } catch (err) {
+      setError("Gagal menyimpan ke database");
     } finally {
       setIsSaving(false);
     }
@@ -333,9 +242,8 @@ Return ONLY valid JSON object, no markdown.`;
       return;
     }
     setQcResult({
-      result: manualResult,
-      confidence: manualConfidence,
-      notes: `[Inspeksi Manual] ${manualNotes}`,
+      status: manualResult === "pass" ? "ACCEPTED" : "REJECTED",
+      reason: `[Inspeksi Manual] ${manualNotes}`,
     });
     setShowManualForm(false);
     setError(null);
@@ -389,23 +297,58 @@ Return ONLY valid JSON object, no markdown.`;
           </h3>
 
           {/* Camera / Image Preview */}
-          <div className="relative w-full aspect-video bg-stone-100 rounded-2xl overflow-hidden border border-stone-200 mb-4">
+          <div className="relative w-full bg-stone-100 rounded-2xl overflow-hidden border border-stone-200 mb-4 flex items-center justify-center min-h-[300px]">
             {cameraActive && !imageBase64 ? (
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover aspect-video"
               />
             ) : imageBase64 ? (
-              <img
-                src={imageBase64}
-                alt="Captured material"
-                className="w-full h-full object-cover"
-              />
+              <div className="relative inline-block w-full">
+                <img
+                  src={imageBase64}
+                  alt="Captured material"
+                  className="w-full h-auto block"
+                  onLoad={(e) => {
+                    const img = e.currentTarget;
+                    setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+                  }}
+                />
+                {/* Bounding Boxes */}
+                {qcResult?.predictions && imageDimensions && qcResult.predictions.map((box, idx) => {
+                  const left = Math.max(0, ((box.x - box.width / 2) / imageDimensions.width) * 100);
+                  const top = Math.max(0, ((box.y - box.height / 2) / imageDimensions.height) * 100);
+                  const width = (box.width / imageDimensions.width) * 100;
+                  const height = (box.height / imageDimensions.height) * 100;
+                  
+                  // Deteksi disease keywords dari class roboflow
+                  const isDisease = ['spot', 'rot', 'rotten', 'blight', 'scab', 'disease', 'mildew', 'rust', 'bad', 'defect'].some(k => box.class.toLowerCase().includes(k));
+                  const borderColor = isDisease ? 'border-[#00FFFF]' : 'border-[#F0E620]'; 
+                  const labelBg = isDisease ? 'bg-[#00FFFF]' : 'bg-[#F0E620]';
+                  
+                  return (
+                    <div 
+                      key={idx}
+                      className={`absolute border-[2px] ${borderColor}`}
+                      style={{
+                        left: `${left}%`,
+                        top: `${top}%`,
+                        width: `${width}%`,
+                        height: `${height}%`,
+                      }}
+                    >
+                      <div className={`absolute -top-[22px] left-[-2px] ${labelBg} text-black text-[11px] font-bold px-1.5 py-0.5 whitespace-nowrap z-10 tracking-tight`}>
+                        {box.class} {Math.round(box.confidence * 100)}%
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 gap-2">
+              <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 gap-2 p-16">
                 <Microscope className="w-12 h-12 opacity-40" />
                 <span className="text-xs font-semibold">Belum ada gambar</span>
               </div>
@@ -465,24 +408,12 @@ Return ONLY valid JSON object, no markdown.`;
             )}
           </div>
 
-          {/* Material ID Input */}
-          <div className="mt-5">
-            <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">
-              Material / Batch ID
-            </label>
-            <input
-              type="text"
-              value={materialId}
-              onChange={(e) => setMaterialId(e.target.value)}
-              placeholder="Contoh: BATCH-2024-001"
-              className="w-full bg-white border border-stone-200 rounded-xl p-3 text-sm font-semibold text-neutral-800 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-[#2C742F]"
-            />
-          </div>
+
 
           {/* Inspect Button */}
           <button
             onClick={runInspection}
-            disabled={isInspecting || !imageBase64 || !materialId.trim()}
+            disabled={isInspecting || !imageBase64}
             className="mt-5 w-full py-3 rounded-full bg-[#2C742F] hover:bg-[#2C742F]/90 text-white font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isInspecting ? (
@@ -497,6 +428,20 @@ Return ONLY valid JSON object, no markdown.`;
               </>
             )}
           </button>
+
+          {/* Auto Save Checkbox */}
+          <div className="mt-3 flex items-start gap-2 px-1">
+            <input
+              type="checkbox"
+              id="autoSave"
+              checked={autoSave}
+              onChange={(e) => setAutoSave(e.target.checked)}
+              className="mt-0.5 w-4 h-4 text-[#2C742F] bg-stone-100 border-stone-300 rounded focus:ring-[#2C742F] cursor-pointer"
+            />
+            <label htmlFor="autoSave" className="text-xs font-semibold text-stone-600 cursor-pointer">
+              Simpan hasil inspeksi secara otomatis ke database (Inspection History)
+            </label>
+          </div>
 
           {/* Error Display */}
           {error && (
@@ -593,78 +538,50 @@ Return ONLY valid JSON object, no markdown.`;
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-5"
               >
-                {/* Pass/Fail Badge */}
-                <div className="flex items-center justify-center">
-                  <div
-                    className={`flex items-center gap-3 px-8 py-4 rounded-2xl border-2 ${
-                      qcResult.result === "pass"
-                        ? "bg-emerald-50 border-emerald-300 text-emerald-800"
-                        : "bg-red-50 border-red-300 text-red-800"
-                    }`}
-                  >
-                    {qcResult.result === "pass" ? (
-                      <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+                {/* Dynamic Alert Banner */}
+                <div className={`p-6 rounded-2xl border-2 flex flex-col gap-4 shadow-sm ${
+                  qcResult.status === "ACCEPTED"
+                    ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                    : "bg-red-50 border-red-300 text-red-800"
+                }`}>
+                  <div className="flex items-center gap-3">
+                    {qcResult.status === "ACCEPTED" ? (
+                      <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                     ) : (
-                      <XCircle className="w-10 h-10 text-red-600" />
+                      <XCircle className="w-8 h-8 text-red-600" />
                     )}
-                    <span className="text-3xl font-black uppercase">
-                      {qcResult.result === "pass" ? "PASS" : "FAIL"}
+                    <span className="text-2xl font-black uppercase">
+                      {qcResult.status}
                     </span>
                   </div>
-                </div>
-
-                {/* Confidence */}
-                <div className="text-center">
-                  <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
-                    Confidence Level
-                  </span>
-                  <span className="text-4xl font-black text-neutral-800 mt-1 block">
-                    {qcResult.confidence}%
-                  </span>
-                  <div className="w-full bg-stone-200 rounded-full h-2 mt-2 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        qcResult.result === "pass" ? "bg-emerald-500" : "bg-red-500"
-                      }`}
-                      style={{ width: `${qcResult.confidence}%` }}
-                    />
+                  
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider block mb-1 opacity-80">
+                      Alasan Inspeksi
+                    </span>
+                    <p className="text-sm font-medium leading-relaxed bg-white/60 p-3 rounded-xl mb-3">
+                      {qcResult.reason}
+                    </p>
                   </div>
                 </div>
 
-                {/* Notes */}
-                <div>
-                  <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">
-                    Quality Assessment Notes
-                  </span>
-                  <div className="bg-white border border-stone-200 rounded-xl p-4 text-sm text-stone-700 leading-relaxed">
-                    {qcResult.notes}
+                {saveSuccess ? (
+                  <div className="w-full py-3 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-sm text-center flex items-center justify-center gap-2 mt-4">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Tersimpan di database
                   </div>
-                </div>
-
-                {/* Save Button */}
-                {!saveSuccess ? (
-                  <button
+                ) : (
+                  <button 
                     onClick={saveToDatabase}
                     disabled={isSaving}
-                    className="w-full py-3 rounded-full bg-[#2C742F] hover:bg-[#2C742F]/90 text-white font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full py-3 rounded-full bg-white border-2 border-stone-200 text-stone-700 hover:border-[#2C742F] hover:text-[#2C742F] font-bold text-sm text-center flex items-center justify-center gap-2 mt-4 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSaving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Menyimpan...
-                      </>
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</>
                     ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Save to Database
-                      </>
+                      <><Save className="w-4 h-4" /> Simpan ke Database</>
                     )}
                   </button>
-                ) : (
-                  <div className="w-full py-3 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-sm text-center flex items-center justify-center gap-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Berhasil disimpan!
-                  </div>
                 )}
               </motion.div>
             ) : (

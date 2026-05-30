@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <body className={`${poppins.variable} font-sans antialiased bg-[#D7E5D8] text-[#1C1B1F] min-h-screen relative`}>
         <AuthProvider>
           <ToastProvider>
