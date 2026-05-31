@@ -135,6 +135,32 @@ router.get('/history', requireAuth, async (req, res) => {
   }
 });
 
+// DELETE /api/qc/history/:id — Delete a single inspection record
+router.delete('/history/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM qc_inspections WHERE id = $1 RETURNING id', [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Inspection record not found' });
+    }
+    return res.json({ success: true, deleted: id });
+  } catch (error) {
+    console.error('Error deleting QC inspection:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DELETE /api/qc/history — Clear all inspection history
+router.delete('/history', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM qc_inspections RETURNING id');
+    return res.json({ success: true, deletedCount: result.rowCount });
+  } catch (error) {
+    console.error('Error clearing QC history:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Validation for /analyze
 const analyzeValidation = [
   body('imageBase64').notEmpty().withMessage('imageBase64 is required'),
@@ -154,45 +180,40 @@ router.post('/analyze', requireAuth, validate(analyzeValidation), async (req, re
       base64Data = imageBase64.split('base64,')[1];
     }
 
-    // 1. Call Roboflow Serverless API (Concurrent Models)
+    // 1. Call the dedicated Roboflow model based on materialType
+    //    Plant tab → plant diseases detection model
+    //    Fruit tab → rotten fruit detector model
     let predictions = [];
     try {
-      const plantModelUrl = `https://serverless.roboflow.com/plants-diseases-detection-and-classification/12?api_key=${process.env.ROBOFLOW_API_KEY}`;
-      const fruitModelUrl = `https://serverless.roboflow.com/rotten-fruit-detector/3?api_key=${process.env.ROBOFLOW_API_KEY}`;
-      
-      const [plantResponse, fruitResponse] = await Promise.allSettled([
-        axios({ method: "POST", url: plantModelUrl, data: base64Data, headers: { "Content-Type": "application/x-www-form-urlencoded" } }),
-        axios({ method: "POST", url: fruitModelUrl, data: base64Data, headers: { "Content-Type": "application/x-www-form-urlencoded" } })
-      ]);
+      const PLANT_MODEL_URL = `https://serverless.roboflow.com/plants-diseases-detection-and-classification/12?api_key=${process.env.ROBOFLOW_API_KEY}`;
+      const FRUIT_MODEL_URL = `https://serverless.roboflow.com/rotten-fruit-detector/3?api_key=${process.env.ROBOFLOW_API_KEY}`;
 
-      const plantPredictions = plantResponse.status === 'fulfilled' ? (plantResponse.value.data.predictions || []) : [];
-      const fruitPredictions = fruitResponse.status === 'fulfilled' ? (fruitResponse.value.data.predictions || []) : [];
+      const modelUrl = materialType === 'plant' ? PLANT_MODEL_URL : FRUIT_MODEL_URL;
 
-      // Filter predictions below 40% confidence and tag their source model
-      const validPlant = plantPredictions.filter(p => p.confidence > 0.40).map(p => ({ ...p, modelSource: 'plant' }));
-      const validFruit = fruitPredictions.filter(p => p.confidence > 0.40).map(p => ({ ...p, modelSource: 'fruit' }));
+      const response = await axios({
+        method: 'POST',
+        url: modelUrl,
+        data: base64Data,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
 
-      predictions = [...validPlant, ...validFruit];
+      const rawPredictions = response.data.predictions || [];
+      // Filter out low-confidence detections and tag with the source model
+      predictions = rawPredictions
+        .filter(p => p.confidence > 0.40)
+        .map(p => ({ ...p, modelSource: materialType }));
+
     } catch (roboflowError) {
-      console.error("Roboflow Error:", roboflowError.message);
-      throw new Error("Failed to process image with Roboflow Vision API");
+      console.error('Roboflow Error:', roboflowError.message);
+      throw new Error('Failed to process image with Roboflow Vision API');
     }
 
     // 2. Logic-based Analysis
     let status = 'ACCEPTED';
     let reason = '';
     const toxicKeywords = ['spot', 'rot', 'rotten', 'blight', 'scab', 'disease', 'mildew', 'rust', 'bad', 'defect'];
-    
-    // Determine the dominant material type based on predictions
-    const plantCount = predictions.filter(p => p.modelSource === 'plant').length;
-    const fruitCount = predictions.filter(p => p.modelSource === 'fruit').length;
-    
-    let actualMaterialType = materialType;
-    if (plantCount > fruitCount && plantCount > 0) {
-      actualMaterialType = 'plant';
-    } else if (fruitCount >= plantCount && fruitCount > 0) {
-      actualMaterialType = 'fruit';
-    }
+
+    const actualMaterialType = materialType;
 
     const roboflowClasses = predictions.map(p => p.class);
 

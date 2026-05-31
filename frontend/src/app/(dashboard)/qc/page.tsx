@@ -11,14 +11,15 @@ import {
   History,
   Microscope,
   Leaf,
-  FlaskConical,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLanguage } from "@/lib/i18n";
 
-type MaterialTab = "fruit-raw" | "extract-powder";
+type MaterialTab = "plant" | "fruit";
 
 interface QCResult {
   status?: "ACCEPTED" | "REJECTED";
@@ -43,7 +44,7 @@ interface InspectionRecord {
 export default function QCPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<MaterialTab>("fruit-raw");
+  const [activeTab, setActiveTab] = useState<MaterialTab>("plant");
   const [materialId, setMaterialId] = useState("");
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
@@ -60,6 +61,9 @@ export default function QCPage() {
   const [manualConfidence, setManualConfidence] = useState(80);
   const [manualNotes, setManualNotes] = useState("");
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [clearingAll, setClearingAll] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Camera state
   const [cameraActive, setCameraActive] = useState(false);
@@ -67,7 +71,7 @@ export default function QCPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const materialType = activeTab === "fruit-raw" ? "fruit" : "extract";
+  const materialType = activeTab === "plant" ? "plant" : "fruit";
 
   // Fetch inspection history
   const fetchHistory = useCallback(async () => {
@@ -305,6 +309,31 @@ export default function QCPage() {
     setError(null);
   };
 
+  const deleteInspection = async (id: number) => {
+    setDeletingId(id);
+    try {
+      await api.delete(`/qc/history/${id}`);
+      setHistory(prev => prev.filter(r => r.id !== id));
+    } catch {
+      setError("Failed to delete inspection record.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const clearAllHistory = async () => {
+    setClearingAll(true);
+    try {
+      await api.delete("/qc/history");
+      setHistory([]);
+      setShowClearConfirm(false);
+    } catch {
+      setError("Failed to clear inspection history.");
+    } finally {
+      setClearingAll(false);
+    }
+  };
+
   return (
     <div className="space-y-8 pb-16 text-left relative">
       {/* Page Header */}
@@ -313,7 +342,7 @@ export default function QCPage() {
           {t("qualityControl")}
         </h2>
         <p className="text-sm text-stone-500 font-semibold mt-1">
-          Inspeksi kualitas material menggunakan AI vision analysis
+          AI vision inspection for plant and fruit raw materials
         </p>
       </div>
 
@@ -321,31 +350,31 @@ export default function QCPage() {
       <div className="flex items-center gap-2">
         <button
           onClick={() => {
-            setActiveTab("fruit-raw");
+            setActiveTab("plant");
             resetInspection();
           }}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all ${
-            activeTab === "fruit-raw"
+            activeTab === "plant"
               ? "bg-[#2C742F] text-white"
               : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
           }`}
         >
           <Leaf className="w-4 h-4" />
-          Fruit & Raw Material
+          Plant
         </button>
         <button
           onClick={() => {
-            setActiveTab("extract-powder");
+            setActiveTab("fruit");
             resetInspection();
           }}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all ${
-            activeTab === "extract-powder"
+            activeTab === "fruit"
               ? "bg-[#2C742F] text-white"
               : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
           }`}
         >
-          <FlaskConical className="w-4 h-4" />
-          Extract & Powder
+          <Leaf className="w-4 h-4" />
+          Fruit
         </button>
       </div>
 
@@ -741,15 +770,64 @@ export default function QCPage() {
 
       {/* Inspection History */}
       <div className="bg-[#F5FBF3] rounded-3xl p-6 border border-[#2C742F]/10 shadow-[6px_6px_54px_rgba(0,0,0,0.04)]">
-        <h3 className="text-lg font-bold text-neutral-800 mb-4 flex items-center gap-2">
-          <History className="w-5 h-5 text-[#2C742F]" />
-          Inspection History
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-neutral-800 flex items-center gap-2">
+            <History className="w-5 h-5 text-[#2C742F]" />
+            Inspection History
+            {history.length > 0 && (
+              <span className="text-xs font-bold bg-stone-200 text-stone-600 px-2 py-0.5 rounded-full">
+                {history.length}
+              </span>
+            )}
+          </h3>
+          {history.length > 0 && !historyLoading && (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition-all active:scale-95"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Clear All
+            </button>
+          )}
+        </div>
+
+        {/* Clear All Confirmation */}
+        <AnimatePresence>
+          {showClearConfirm && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mb-4 p-4 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-2 text-sm text-red-700 font-semibold">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                Delete all {history.length} inspection records? This cannot be undone.
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="px-3 py-1.5 rounded-full border border-stone-200 bg-white text-stone-600 text-xs font-bold hover:bg-stone-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={clearAllHistory}
+                  disabled={clearingAll}
+                  className="px-3 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {clearingAll ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                  {clearingAll ? "Deleting..." : "Delete All"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {historyLoading ? (
           <div className="flex items-center justify-center py-8 gap-2">
             <Loader2 className="w-5 h-5 animate-spin text-[#2C742F]" />
-            <span className="text-sm text-stone-500 font-semibold">Memuat riwayat...</span>
+            <span className="text-sm text-stone-500 font-semibold">Loading history...</span>
           </div>
         ) : historyError ? (
           <div className="text-center py-8 space-y-3">
@@ -758,47 +836,33 @@ export default function QCPage() {
               onClick={fetchHistory}
               className="px-4 py-2 rounded-full bg-[#2C742F] hover:bg-[#2C742F]/90 text-white text-xs font-bold transition-all active:scale-95"
             >
-              Coba Lagi
+              Try Again
             </button>
           </div>
         ) : history.length === 0 ? (
           <div className="text-center py-8 text-stone-400">
-            <p className="text-sm font-semibold">Belum ada riwayat inspeksi</p>
+            <History className="w-10 h-10 opacity-20 mx-auto mb-2" />
+            <p className="text-sm font-semibold">No inspection records yet</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-stone-200">
-                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">
-                    Material ID
-                  </th>
-                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">
-                    Result
-                  </th>
-                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">
-                    Confidence
-                  </th>
-                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">
-                    Notes
-                  </th>
-                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">
-                    Date
-                  </th>
+                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">Material ID</th>
+                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">Type</th>
+                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">Result</th>
+                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">Confidence</th>
+                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">Notes</th>
+                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">Date</th>
+                  <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {history.map((record) => (
-                  <tr key={record.id} className="hover:bg-white/50 transition-colors">
-                    <td className="py-3 px-3 font-semibold text-neutral-800">
-                      {record.materialId}
-                    </td>
-                    <td className="py-3 px-3 text-stone-600 capitalize">
-                      {record.materialType}
-                    </td>
+                  <tr key={record.id} className="hover:bg-white/50 transition-colors group">
+                    <td className="py-3 px-3 font-semibold text-neutral-800">{record.materialId}</td>
+                    <td className="py-3 px-3 text-stone-600 capitalize">{record.materialType}</td>
                     <td className="py-3 px-3">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
@@ -816,19 +880,33 @@ export default function QCPage() {
                       </span>
                     </td>
                     <td className="py-3 px-3 font-semibold text-neutral-800">
-                      {record.confidence}%
+                      {Math.round(record.confidence)}%
                     </td>
                     <td className="py-3 px-3 text-stone-600 max-w-[200px] truncate">
                       {record.notes || "-"}
                     </td>
-                    <td className="py-3 px-3 text-stone-500 text-xs">
-                      {new Date(record.inspectedAt).toLocaleString("id-ID", {
+                    <td className="py-3 px-3 text-stone-500 text-xs whitespace-nowrap">
+                      {new Date(record.inspectedAt).toLocaleString("en-US", {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
+                    </td>
+                    <td className="py-3 px-3">
+                      <button
+                        onClick={() => deleteInspection(record.id)}
+                        disabled={deletingId === record.id}
+                        className="p-1.5 rounded-lg text-stone-300 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                        title="Delete record"
+                      >
+                        {deletingId === record.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
                     </td>
                   </tr>
                 ))}
