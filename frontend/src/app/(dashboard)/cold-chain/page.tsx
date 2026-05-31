@@ -362,7 +362,7 @@ export default function ColdChainPage() {
       </div>
 
       {/* Zone Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {displayedZones.map((zone, idx) => {
           const Icon = zone.icon;
           const deviationAbs = Math.abs(zone.deviation);
@@ -524,7 +524,7 @@ export default function ColdChainPage() {
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                className="bg-white rounded-2xl w-full max-w-lg border border-stone-200 shadow-2xl relative text-left overflow-hidden"
+                className="bg-white rounded-2xl w-[95vw] max-w-lg border border-stone-200 shadow-2xl relative text-left overflow-hidden"
               >
                 {/* Modal Header */}
                 <div className="bg-[#F5FBF3] px-6 py-4 border-b border-[#D7E5D8] flex items-start justify-between">
@@ -728,7 +728,7 @@ export default function ColdChainPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white rounded-2xl p-6 max-w-md w-full border border-stone-200 shadow-2xl relative text-left"
+                className="bg-white rounded-2xl p-6 w-[95vw] max-w-md border border-stone-200 shadow-2xl relative text-left"
               >
                 <button
                   onClick={() => setShowTicketModal(false)}

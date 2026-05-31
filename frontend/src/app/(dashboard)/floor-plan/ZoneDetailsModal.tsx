@@ -62,7 +62,7 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2 }}
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-5"
+        className="relative bg-white rounded-2xl shadow-2xl w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-5"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* Header */}

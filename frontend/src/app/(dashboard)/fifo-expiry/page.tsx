@@ -443,8 +443,8 @@ export default function FifoExpiryPage() {
       </div>
  
         {/* Data Table Wrapper with scroll */}
-        <div className="w-full overflow-y-auto max-h-[500px] border-b border-[#2C742F]/10 custom-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+        <div className="w-full overflow-auto max-h-[70vh] border-b border-[#2C742F]/10 custom-scrollbar">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-[#2C742F]/5 border-b border-[#2C742F]/10 text-stone-700 text-sm font-bold uppercase tracking-wider">
                 <th className="px-6 py-4 w-60 sticky top-0 bg-[#F5FBF3] z-10">{t('colMaterial')}</th>

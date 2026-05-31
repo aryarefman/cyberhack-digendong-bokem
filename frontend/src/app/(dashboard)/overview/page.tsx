@@ -64,7 +64,7 @@ function WeeklyStockChart({ data }: { data?: Array<{ date: string; count: number
     return (
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#D7E5D8]">
         <h3 className="text-lg font-bold text-[#1C1B1F] mb-4">Weekly Stock Trend</h3>
-        <div className="h-[280px] flex items-center justify-center text-sm text-[#79747E]">
+        <div className="h-[200px] sm:h-[280px] flex items-center justify-center text-sm text-[#79747E]">
           No trend data available
         </div>
       </div>
@@ -87,7 +87,7 @@ function WeeklyStockChart({ data }: { data?: Array<{ date: string; count: number
           View All
         </Link>
       </div>
-      <div className="w-full h-[280px]">
+      <div className="w-full h-[200px] sm:h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
@@ -168,7 +168,7 @@ function ZoneSummaryCards({
           View All
         </Link>
       </div>
-      <div className="w-full h-[220px]">
+      <div className="w-full h-[180px] sm:h-[220px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
@@ -705,7 +705,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Quick Stats (left) + Zone Summary (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}

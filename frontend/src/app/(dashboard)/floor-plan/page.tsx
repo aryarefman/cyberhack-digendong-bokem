@@ -1894,7 +1894,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ duration: 0.2 }}
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
-              className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col text-left border border-[#AAE970]/10"
+              className="relative bg-white rounded-2xl shadow-2xl w-[95vw] max-w-md overflow-hidden flex flex-col text-left border border-[#AAE970]/10"
             >
               {/* Header */}
               <div className="bg-[#F5FBF3] p-5 border-b border-[#AAE970]/10 flex justify-between items-start relative">
@@ -2107,7 +2107,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col text-left border border-stone-200"
+              className="relative bg-white rounded-3xl shadow-2xl w-[98vw] max-w-4xl flex flex-col text-left border border-stone-200"
             >
               {/* Header */}
               <div className="bg-[#F5FBF3] p-5 border-b border-[#AAE970]/10 flex justify-between items-center rounded-t-3xl">

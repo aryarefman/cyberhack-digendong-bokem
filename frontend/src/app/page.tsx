@@ -5,7 +5,7 @@ import { LandingHeader, HeroSection, LandingFooter } from "@/components/landing"
 export default function LandingPage() {
   return (
     <main 
-      className="min-h-screen flex flex-col justify-between relative overflow-hidden select-none font-sans"
+      className="min-h-screen flex flex-col justify-between relative overflow-x-hidden select-none font-sans"
       style={{
         backgroundImage: "url('/landing%20page%20bg.jpg')",
         backgroundSize: "cover",

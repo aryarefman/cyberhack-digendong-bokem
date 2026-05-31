@@ -380,7 +380,7 @@ export default function QCPage() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left Panel: Camera & Capture */}
         <div className="bg-[#F5FBF3] rounded-3xl p-6 border border-[#2C742F]/10 shadow-[6px_6px_54px_rgba(0,0,0,0.04)]">
           <h3 className="text-lg font-bold text-neutral-800 mb-4 flex items-center gap-2">
@@ -847,7 +847,7 @@ export default function QCPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm min-w-[640px]">
               <thead>
                 <tr className="border-b border-stone-200">
                   <th className="py-3 px-3 text-xs font-bold text-stone-500 uppercase tracking-wider">Material ID</th>

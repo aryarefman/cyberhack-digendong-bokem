@@ -986,7 +986,7 @@ ${notesHtml}
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-[380px_1fr] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] xl:grid-cols-[380px_1fr] gap-6 items-start">
         
         {/* Left Config Panel */}
         <motion.div 
@@ -1457,7 +1457,7 @@ ${notesHtml}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl max-w-md w-full shadow-2xl p-6 text-center border border-lime-100"
+              className="bg-white rounded-2xl w-[95vw] max-w-md shadow-2xl p-6 text-center border border-lime-100"
             >
               <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full border-4 border-lime-100 border-t-lime-800 animate-spin" />
@@ -1497,7 +1497,7 @@ ${notesHtml}
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col text-left"
+              className="bg-white rounded-2xl w-[95vw] max-w-lg shadow-2xl overflow-hidden flex flex-col text-left"
             >
               <div className="bg-[#F5FBF3] p-5 flex flex-col items-center justify-center text-center gap-2 border-b border-[#AAE970]/10 relative">
                 <button 

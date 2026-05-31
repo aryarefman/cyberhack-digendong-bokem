@@ -722,8 +722,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Dashboard Content */}
-        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden">
+          <div className="max-w-7xl mx-auto min-w-0">
               {children}
           </div>
         </main>

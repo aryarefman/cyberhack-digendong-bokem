@@ -368,10 +368,10 @@ export default function InventoryMasterPage() {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut", delay: 0.05 }}
-        className="w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+        className="w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-4 flex-wrap"
       >
         {/* Left Search & Category Dropdown */}
-        <div className="flex-1 max-w-[576px] flex justify-start items-start gap-3 w-full">
+        <div className="flex-1 min-w-0 flex justify-start items-start gap-3 w-full max-w-full md:max-w-[576px]">
           {/* Search Pill */}
           <div className="flex-1 relative inline-flex flex-col justify-start items-start">
             <input
@@ -431,7 +431,7 @@ export default function InventoryMasterPage() {
 
         {/* Add New Record Button */}
         {canEdit() && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setIsUpdateStockOpen(true)}
               className="px-5 py-2.5 bg-white hover:bg-stone-50 border border-stone-200 rounded-[43px] flex justify-center items-center gap-2 text-[#1C1B1F] text-xs font-semibold font-sans leading-4 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] active:scale-[0.98] transition-transform duration-100 shrink-0"
@@ -458,8 +458,8 @@ export default function InventoryMasterPage() {
         className="w-full bg-[#F5FBF3] rounded-xl shadow-[0px_4px_12px_rgba(143,177,87,0.05)] border border-[#AAE970]/10 overflow-hidden flex flex-col justify-start items-start"
       >
         {/* Table wrapper with scroll */}
-        <div className="w-full overflow-y-auto max-h-[500px] custom-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[1050px]">
+        <div className="w-full overflow-auto max-h-[70vh] custom-scrollbar">
+          <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-[#2C742F]/5 border-b border-[#AAE970]/10 text-stone-700 text-sm font-bold tracking-wide">
                 <th className="px-6 py-4 w-12 sticky top-0 bg-[#F5FBF3] z-10 border-b border-[#AAE970]/10" />
@@ -667,7 +667,7 @@ export default function InventoryMasterPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 m-auto max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-6 shadow-2xl z-50 border border-stone-200/40 text-left flex flex-col justify-start custom-scrollbar"
+              className="fixed inset-0 m-auto w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-6 shadow-2xl z-50 border border-stone-200/40 text-left flex flex-col justify-start custom-scrollbar"
             >
               {/* Header */}
               <div className="flex justify-between items-center border-b border-stone-100 pb-4 mb-4">

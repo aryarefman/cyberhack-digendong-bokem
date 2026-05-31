@@ -340,8 +340,10 @@ export default function AuditTrailPage() {
         transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
         className="w-full bg-[#F5FBF3] rounded-xl shadow-[0px_4px_12px_rgba(143,177,87,0.05)] border border-[#AAE970]/10 overflow-hidden flex flex-col justify-start items-start"
       >
+        {/* Horizontal scroll wrapper — ensures table never breaks layout */}
+        <div className="w-full overflow-x-auto">
         {/* Table Header */}
-        <div className="w-full px-6 py-4 bg-[#2C742F]/5 border-b border-[#AAE970]/10 flex justify-between items-center sticky top-0 bg-[#F5FBF3] z-10">
+        <div className="min-w-[800px] px-6 py-4 bg-[#2C742F]/5 border-b border-[#AAE970]/10 flex justify-between items-center">
           <div className="w-44 text-stone-700 text-xs font-bold font-sans tracking-wide">
             {t('colTimestamp').toUpperCase()}
           </div>
@@ -360,7 +362,7 @@ export default function AuditTrailPage() {
         </div>
 
         {/* Table Rows with scroll wrapper */}
-        <div className="w-full flex flex-col justify-start items-start overflow-y-auto max-h-[500px] divide-y divide-[#AAE970]/10 custom-scrollbar">
+        <div className="min-w-[800px] flex flex-col justify-start items-start overflow-y-auto max-h-[70vh] divide-y divide-[#AAE970]/10 custom-scrollbar">
           {paginatedLogs.map((log, idx) => {
             let badgeStyle = "bg-lime-700/10 text-lime-800";
             if (log.role === "QC") {
@@ -447,6 +449,7 @@ export default function AuditTrailPage() {
             </div>
           )}
         </div>
+        </div>{/* end overflow-x-auto */}
 
         {/* Footer Pagination */}
         <div className="w-full px-5 py-3.5 border-t border-[#2C742F]/10 flex items-center justify-between">

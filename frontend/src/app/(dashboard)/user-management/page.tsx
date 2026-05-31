@@ -684,7 +684,7 @@ export default function UserManagementPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl relative"
+                className="bg-white rounded-2xl p-6 w-[95vw] max-w-md space-y-4 shadow-2xl relative"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between border-b border-stone-100 pb-3">
