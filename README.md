@@ -13,7 +13,6 @@
 
 - [Problem Statement](#problem-statement)
 - [Solution Overview](#solution-overview)
-- [Judging Criteria Alignment](#judging-criteria-alignment)
 - [Architecture](#architecture)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
@@ -54,52 +53,6 @@ AromaSys replaces the spreadsheet workflow with a full-stack digital operations 
 | **Enterprise Governance** | 4-role RBAC (Operator / QC / PPIC / Admin), immutable audit trail, JWT auth, rate limiting, and full compliance logging |
 
 ---
-
-## Judging Criteria Alignment
-
-### 01 — Enterprise Readiness (30%)
-
-| Requirement | Implementation |
-|---|---|
-| Audit trail | Immutable `audit_logs` table — every create/update/delete writes a timestamped record with actor, role, action, detail, and module |
-| RBAC / policy enforcement | 4-role system (Operator, QC, PPIC, Admin) enforced server-side in `auth.js` middleware on every protected route |
-| Security | bcryptjs (10 rounds), JWT/JOSE HS256, parameterized SQL, express-validator, rate limiting, CORS, security headers |
-| Scalability | Neon Serverless PostgreSQL with connection pooling; stateless Express API deployable to any Node.js host |
-| Clean documentation | Full API reference, RBAC matrix, security table, architecture diagram, and deployment guide in this README |
-
-### 02 — Problem-Solution Fit (20%)
-
-AromaSys directly addresses the four failure points identified at Sima Arome:
-- **Expired materials** → FIFO tracking with color-coded urgency (Expired / Critical / Warning / Safe) and automated expiry alerts on the dashboard
-- **Cold-chain failures** → Real-time temperature monitoring per zone, SVG sparkline trend charts, anomaly detection, and one-click maintenance ticket creation
-- **QC bottlenecks** → Computer vision inspection in seconds (vs. 15–20 min manual), with automatic result storage and history
-- **Zero traceability** → Every user action is written to an immutable audit log, searchable by actor, module, and date range
-
-### 03 — Innovation & Creativity (20%)
-
-| Innovation | Description |
-|---|---|
-| **AI Digital Twin** | Users upload a warehouse blueprint image and/or CSV; Gemini vision model extracts zone coordinates and auto-populates the interactive floor plan |
-| **Multi-model AI Copilot** | Gemini 2.5 Flash with live database context injection — the chatbot knows current stock levels, expiry dates, zone temperatures, and generates real warehouse-specific advice |
-| **Computer Vision QC** | Two dedicated Roboflow models: `plants-diseases-detection-and-classification/12` for plant materials, `rotten-fruit-detector/3` for fruit — returns bounding boxes with class labels and confidence scores |
-| **AI Auto-Report** | Generates structured `Key Findings + Immediate Actions` reports from live DB data; exports to PDF or CSV with a single click |
-| **AI Zone Placement** | Gemini analyzes material categories, zone temperatures, and current occupancy to recommend optimal placement for unassigned inventory |
-
-### 04 — User Experience & Design (20%)
-
-- Animated landing page with interactive stacked card preview of all modules
-- Dashboard with 4 real-time KPI cards, donut charts, and Recharts line/bar/area charts
-- Framer Motion page transitions and micro-animations throughout
-- Fully responsive layout at any viewport width and zoom level (80%–150%)
-- Role-aware UI — menu items, buttons, and actions appear/disappear based on the logged-in user's role
-- Bilingual support (English / Bahasa Indonesia) persisted per user in the database
-- Dark/light consistent design system using a custom green `#2C742F` palette
-
-### 05 — Pitch & Presentation (10%)
-
-- This README serves as the primary technical documentation
-- Demo accounts are provided for all 4 roles (see [Demo Accounts](#demo-accounts))
-- Live deployment accessible at the Vercel and Render URLs below
 
 ---
 
