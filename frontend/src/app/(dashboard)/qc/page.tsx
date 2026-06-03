@@ -273,6 +273,7 @@ export default function QCPage() {
               }));
 
               let newCount = 0;
+              let newObjectsConfSum = 0;
               const now = Date.now();
               const width = video.videoWidth;
 
@@ -293,6 +294,7 @@ export default function QCPage() {
                 
                 if (!isDuplicate) {
                   newCount++;
+                  newObjectsConfSum += (p.confidence || 0);
                   recentCenters.current.push({ x: p.x, y: p.y, time: now });
                   
                   const isDisease = [
@@ -326,7 +328,7 @@ export default function QCPage() {
                 const newBatchId = `BATCH-AUTO-${dateStr}-${randomStr}`;
                 setMaterialId(newBatchId);
                 
-                const avgConf = Math.round(passingObjects.reduce((acc: number, p: any) => acc + (p.confidence || 0), 0) / newCount * 100) || 0;
+                const avgConf = Math.round((newObjectsConfSum / newCount) * 100) || 0;
                 setInterimResults(prev => [{
                   id: newBatchId,
                   timestamp: new Date().toLocaleTimeString(),
@@ -608,7 +610,7 @@ export default function QCPage() {
           {t("qualityControl")}
         </h2>
         <p className="text-sm text-stone-500 font-semibold mt-1">
-          AI vision inspection for plant and fruit raw materials
+          {t("qcSubtitle")}
         </p>
       </div>
 
@@ -650,7 +652,7 @@ export default function QCPage() {
         <div className="bg-[#F5FBF3] rounded-3xl p-6 border border-[#2C742F]/10 shadow-[6px_6px_54px_rgba(0,0,0,0.04)]">
           <h3 className="text-lg font-bold text-neutral-800 mb-4 flex items-center gap-2">
             <Camera className="w-5 h-5 text-[#2C742F]" />
-            Capture Material Image
+            {t("qcCaptureImage")}
           </h3>
 
           {/* Camera / Image Preview */}
@@ -761,7 +763,7 @@ export default function QCPage() {
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 gap-2 p-16">
                 <Microscope className="w-12 h-12 opacity-40" />
-                <span className="text-xs font-semibold">No image captured</span>
+                <span className="text-xs font-semibold">{t("qcNoImage")}</span>
               </div>
             )}
           </div>
@@ -778,18 +780,18 @@ export default function QCPage() {
                   className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#2C742F] hover:bg-[#2C742F]/90 text-white text-xs font-bold transition-all active:scale-95"
                 >
                   <Camera className="w-4 h-4" />
-                  Start Camera
+                  {t("qcStartCamera")}
                 </button>
                 <button
                   onClick={startVideo}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all active:scale-95 shadow-sm"
                 >
                   <Video className="w-4 h-4" />
-                  Start Video
+                  {t("qcStartVideo")}
                 </button>
                 <label className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-stone-200 text-stone-700 text-xs font-bold cursor-pointer hover:bg-stone-50 transition-all active:scale-95">
                   <Upload className="w-4 h-4" />
-                  Upload File
+                  {t("qcUploadFile")}
                   <input
                     type="file"
                     accept="image/*"
@@ -814,7 +816,7 @@ export default function QCPage() {
                   onClick={stopCamera}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-stone-200 text-stone-700 text-xs font-bold hover:bg-stone-50 transition-all active:scale-95"
                 >
-                  Stop Camera / Video
+                  {t("qcStopCamera")} / Video
                 </button>
               </>
             )}
@@ -828,7 +830,7 @@ export default function QCPage() {
                 }}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-stone-200 text-stone-700 text-xs font-bold hover:bg-stone-50 transition-all active:scale-95"
               >
-                Retake / Upload New
+                {t("qcRetake")}
               </button>
             )}
           </div>
@@ -842,7 +844,7 @@ export default function QCPage() {
               type="text"
               value={materialId}
               onChange={(e) => setMaterialId(e.target.value)}
-              placeholder="Example: BATCH-2024-001 (Leave blank to auto-generate)"
+              placeholder={t("qcBatchPlaceholder")}
               className="w-full bg-white border border-stone-200 rounded-xl p-3 text-sm font-semibold text-neutral-800 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-[#2C742F]"
             />
           </div>
@@ -866,7 +868,7 @@ export default function QCPage() {
             ) : (
               <>
                 <Microscope className="w-4 h-4" />
-                Inspect with AI
+                {t("qcInspectAI")}
               </>
             )}
           </button>
@@ -883,7 +885,7 @@ export default function QCPage() {
                   className="mt-0.5 w-4 h-4 text-[#2C742F] bg-stone-100 border-stone-300 rounded focus:ring-[#2C742F] cursor-pointer"
                 />
                 <label htmlFor="countObjects" className="text-xs font-semibold text-stone-600 cursor-pointer">
-                  Start counting objects (auto detect and count moving objects)
+                  {t("qcStartCounting")}
                 </label>
               </div>
             )}
@@ -897,7 +899,7 @@ export default function QCPage() {
                 className="mt-0.5 w-4 h-4 text-[#2C742F] bg-stone-100 border-stone-300 rounded focus:ring-[#2C742F] cursor-pointer"
               />
               <label htmlFor="autoSave" className="text-xs font-semibold text-stone-600 cursor-pointer">
-                Automatically save inspection results to database
+                {t("qcAutoSave")}
               </label>
             </div>
           </div>
@@ -921,7 +923,7 @@ export default function QCPage() {
               </p>
               <div>
                 <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">
-                  Inspection Result
+                  {t("qcInspectionResult")}
                 </label>
                 <div className="flex gap-2">
                   <button
@@ -975,7 +977,7 @@ export default function QCPage() {
                 onClick={submitManualInspection}
                 className="w-full py-2.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition-all active:scale-[0.98]"
               >
-                Submit Manual Inspection
+                {t("qcSubmitManual")}
               </button>
             </div>
           )}
@@ -986,7 +988,7 @@ export default function QCPage() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-neutral-800 flex items-center gap-2">
               <Microscope className="w-5 h-5 text-[#2C742F]" />
-              Inspection Result
+              {t("qcInspectionResult")}
             </h3>
             
             {/* Real-time Accept / Reject Counters in Video Mode */}
@@ -1102,7 +1104,7 @@ export default function QCPage() {
                   saveSuccess ? (
                     <div className="w-full py-3 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-sm text-center flex items-center justify-center gap-2 mt-4">
                       <CheckCircle2 className="w-4 h-4" />
-                      Saved to database
+                      {t("qcSavedDb")}
                     </div>
                   ) : (
                     <button
@@ -1132,9 +1134,9 @@ export default function QCPage() {
                 className="flex flex-col items-center justify-center py-16 text-stone-400 gap-3"
               >
                 <Microscope className="w-16 h-16 opacity-30" />
-                <p className="text-sm font-semibold">No inspection results</p>
+                <p className="text-sm font-semibold">{t("qcNoResults")}</p>
                 <p className="text-xs text-stone-400">
-                  Capture material image and click "Inspect with AI"
+                  Capture material image and click "{t("qcInspectAI")}"
                 </p>
               </motion.div>
             )}
@@ -1142,16 +1144,16 @@ export default function QCPage() {
         </div>
       </div>
 
-      {/* Interim Inspection Results for Video Mode */}
+      {/* Interim {t("qcInspectionResult")}s for Video Mode */}
       {(isVideoMode || interimResults.length > 0) && (
         <div className="bg-[#F5FBF3] rounded-3xl p-6 border border-[#2C742F]/10 shadow-[6px_6px_54px_rgba(0,0,0,0.04)] mb-6 mt-6">
           <div className="flex items-center justify-between mb-4">
              <h3 className="text-lg font-bold text-neutral-800 flex items-center gap-2">
                <History className="w-5 h-5 text-[#2C742F]" />
-               Interim Inspection Results
+               Interim {t("qcInspectionResult")}s
                {interimResults.length > 0 && (
                  <span className="text-xs font-bold bg-[#2C742F]/10 text-[#2C742F] px-2 py-0.5 rounded-full ml-1 border border-[#2C742F]/20">
-                   Total Objects: {interimResults.reduce((sum, r) => sum + r.total, 0)}
+                   {t("qcTotalObjects")} {interimResults.reduce((sum, r) => sum + r.total, 0)}
                  </span>
                )}
              </h3>
@@ -1188,10 +1190,11 @@ export default function QCPage() {
                       <div className="text-xs text-stone-500 flex items-center gap-1 mt-1"><Clock className="w-3 h-3"/> {res.timestamp}</div>
                    </div>
                    <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
-                      <span className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg">Accept: {res.accepted}</span>
-                      <span className="px-2.5 py-1.5 bg-red-50 text-red-700 rounded-lg">Reject: {res.rejected}</span>
-                      <span className="px-2.5 py-1.5 bg-stone-100 text-stone-700 rounded-lg">Total: {res.total}</span>
-                      <span className="px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg">Confidence: {res.avgConfidence}%</span>
+                      <span className={`px-2.5 py-1.5 rounded-lg ${res.status === 'ACCEPTED' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                        {t("qcResultText")} {res.status}
+                      </span>
+                      <span className="px-2.5 py-1.5 bg-stone-100 text-stone-700 rounded-lg">{t("qcObjectText")} {res.total}</span>
+                      <span className="px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg">{t("qcConfidenceText")} {res.avgConfidence}%</span>
                       <button
                         onClick={() => {
                           setInterimResults(prev => prev.filter(item => item.id !== res.id));
@@ -1212,19 +1215,19 @@ export default function QCPage() {
         </div>
       )}
 
-      {/* Inspection History */}
+      {/* {t("qcHistory")} */}
       <div className="bg-[#F5FBF3] rounded-3xl p-6 border border-[#2C742F]/10 shadow-[6px_6px_54px_rgba(0,0,0,0.04)]">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-neutral-800 flex items-center gap-2">
             <History className="w-5 h-5 text-[#2C742F]" />
-            Inspection History
+            {t("qcHistory")}
             {history.length > 0 && (
               <>
                 <span className="text-xs font-bold bg-stone-200 text-stone-600 px-2 py-0.5 rounded-full">
                   {history.length} batches
                 </span>
                 <span className="text-xs font-bold bg-[#2C742F]/10 text-[#2C742F] px-2 py-0.5 rounded-full border border-[#2C742F]/20">
-                  Total Objects: {history.reduce((sum, record) => {
+                  {t("qcTotalObjects")} {history.reduce((sum, record) => {
                     if (record.notes?.includes("[Auto Video Inspection]")) {
                       const match = record.notes.match(/Accepted: (\d+), Rejected: (\d+)/);
                       if (match) return sum + parseInt(match[1]) + parseInt(match[2]);
@@ -1290,7 +1293,7 @@ export default function QCPage() {
         {historyLoading ? (
           <div className="flex items-center justify-center py-8 gap-2">
             <Loader2 className="w-5 h-5 animate-spin text-[#2C742F]" />
-            <span className="text-sm text-stone-500 font-semibold">Loading history...</span>
+            <span className="text-sm text-stone-500 font-semibold">{t("qcLoadingHistory")}</span>
           </div>
         ) : historyError ? (
           <div className="text-center py-8 space-y-3">
@@ -1305,7 +1308,7 @@ export default function QCPage() {
         ) : history.length === 0 ? (
           <div className="text-center py-8 text-stone-400">
             <History className="w-10 h-10 opacity-20 mx-auto mb-2" />
-            <p className="text-sm font-semibold">No inspection records yet</p>
+            <p className="text-sm font-semibold">{t("qcNoHistory")}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
