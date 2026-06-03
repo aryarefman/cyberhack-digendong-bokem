@@ -3,13 +3,10 @@ frontend:
   phases:
     preBuild:
       commands:
-        - cd frontend
-        - npm ci
+        - if [ -d "frontend" ]; then cd frontend; fi && npm ci
     build:
       commands:
-        - cd frontend
-        - echo "NEXT_PUBLIC_API_URL=https://aromasys-backend.onrender.com/api" >> .env.production
-        - npm run build
+        - if [ -d "frontend" ]; then cd frontend; fi && echo "NEXT_PUBLIC_API_URL=https://aromasys-backend.onrender.com/api" >> .env.production && npm run build
   artifacts:
     baseDirectory: frontend/.next
     files:
