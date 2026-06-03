@@ -9,6 +9,7 @@ applications:
         build:
           commands:
             - echo "NEXT_PUBLIC_API_URL=https://aromasys-backend.onrender.com/api" >> .env.production
+            - echo "NEXT_PUBLIC_GEMINI_API_KEY=$NEXT_PUBLIC_GEMINI_API_KEY" >> .env.production
             - npm run build
       artifacts:
         baseDirectory: .next
