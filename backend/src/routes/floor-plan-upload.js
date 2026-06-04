@@ -41,16 +41,26 @@ router.post('/', upload.fields([
       return res.status(400).json({ success: false, error: 'Unsupported file format. Only PDF is accepted for metadata' });
     }
 
-    let zones;
-    const userApiKey = req.headers['x-gemini-api-key'] || req.headers['x-gemini-key'];
+      // Normalize mimetype for Gemini API (e.g. mapping octet-stream or image/jpg to image/jpeg)
+      let normalizedMimeType = imageFile.mimetype;
+      if (extension === 'jpg' || extension === 'jpeg') {
+        normalizedMimeType = 'image/jpeg';
+      } else if (extension === 'png') {
+        normalizedMimeType = 'image/png';
+      } else if (extension === 'webp') {
+        normalizedMimeType = 'image/webp';
+      }
 
-    if (pdfFile) {
-      // Enhanced zone extraction: image + PDF combined analysis
-      zones = await extractZonesFromImageAndPDF(imageFile.buffer, imageFile.mimetype, pdfFile.buffer, userApiKey);
-    } else {
-      // Image-only zone detection
-      zones = await extractZonesFromImage(imageFile.buffer, imageFile.mimetype, userApiKey);
-    }
+      let zones;
+      const userApiKey = req.headers['x-gemini-api-key'] || req.headers['x-gemini-key'];
+
+      if (pdfFile) {
+        // Enhanced zone extraction: image + PDF combined analysis
+        zones = await extractZonesFromImageAndPDF(imageFile.buffer, normalizedMimeType, pdfFile.buffer, userApiKey);
+      } else {
+        // Image-only zone detection
+        zones = await extractZonesFromImage(imageFile.buffer, normalizedMimeType, userApiKey);
+      }
 
     return res.json({ success: true, zones });
   } catch (error) {
