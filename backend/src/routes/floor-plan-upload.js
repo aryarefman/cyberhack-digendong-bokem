@@ -1,5 +1,9 @@
 import { Router } from 'express';
 import multer from 'multer';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 const router = Router();
 
@@ -237,16 +241,40 @@ async function extractZonesFromImage(imageBuffer, mimeType, userApiKey) {
 }
 
 /**
+ * Extract text from a PDF buffer.
+ */
+async function extractTextFromPDF(pdfBuffer) {
+  try {
+    const array = new Uint8Array(pdfBuffer.buffer, pdfBuffer.byteOffset, pdfBuffer.byteLength);
+    const instance = new pdfParse.PDFParse(array);
+    const result = await instance.getText();
+    return result.text || '';
+  } catch (err) {
+    console.error('Error parsing PDF text:', err);
+    return '';
+  }
+}
+
+/**
  * Extract zones from an image + PDF using Gemini AI for enhanced analysis.
  */
 async function extractZonesFromImageAndPDF(imageBuffer, imageMimeType, pdfBuffer, userApiKey) {
   const base64Image = imageBuffer.toString('base64');
-  const base64Pdf = pdfBuffer.toString('base64');
+  
+  // Extract text from PDF to send in prompt
+  const pdfText = await extractTextFromPDF(pdfBuffer);
+  
+  const prompt = `${ENHANCED_ZONE_PROMPT}
+
+Here is the textual metadata content extracted from the uploaded PDF document to assist in zone description and details:
+---
+${pdfText}
+---`;
+
   const contents = [{
     parts: [
-      { text: ENHANCED_ZONE_PROMPT },
-      { inlineData: { mimeType: imageMimeType, data: base64Image } },
-      { inlineData: { mimeType: 'application/pdf', data: base64Pdf } }
+      { text: prompt },
+      { inlineData: { mimeType: imageMimeType, data: base64Image } }
     ]
   }];
 
