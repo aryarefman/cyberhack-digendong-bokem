@@ -501,7 +501,7 @@ Enforced server-side in `backend/src/middleware/auth.js` and mirrored in the fro
 
 ## Team
 
-**Teknologi Informasi** — Universitas XYZ
+**Teknologi Informasi** — Institut Teknologi Sepuluh Nopember
 
 | Name | Role |
 |---|---|
