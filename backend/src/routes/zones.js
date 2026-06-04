@@ -15,17 +15,29 @@ pool.query(`
   )
 `).catch(err => console.error('app_settings table init error:', err));
 
-// GET /api/zones — fetch saved floor plan zones for the current user
+// GET /api/zones — fetch saved floor plan zones (shared across all roles)
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const result = await pool.query(
-      'SELECT settings_value FROM app_settings WHERE user_id = $1 AND settings_key = $2',
-      [userId, 'floor_plan_zones']
-    );
+    // Fetch the floor plan zones saved by any Admin (most recently updated)
+    const result = await pool.query(`
+      SELECT settings_value 
+      FROM app_settings 
+      JOIN users ON users.id = app_settings.user_id 
+      WHERE users.role = 'Admin' AND settings_key = $1
+      ORDER BY app_settings.updated_at DESC 
+      LIMIT 1
+    `, ['floor_plan_zones']);
 
     if (result.rows.length === 0) {
-      return res.json({ success: true, data: null });
+      // Fallback to checking if the current user has any saved settings
+      const fallbackResult = await pool.query(
+        'SELECT settings_value FROM app_settings WHERE user_id = $1 AND settings_key = $2',
+        [req.user.id, 'floor_plan_zones']
+      );
+      if (fallbackResult.rows.length === 0) {
+        return res.json({ success: true, data: null });
+      }
+      return res.json({ success: true, data: fallbackResult.rows[0].settings_value });
     }
 
     return res.json({ success: true, data: result.rows[0].settings_value });
@@ -35,9 +47,12 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/zones — save floor plan zones for the current user
+// PUT /api/zones — save floor plan zones (only for Admin)
 router.put('/', requireAuth, async (req, res) => {
   try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ success: false, error: 'Only admins can edit the floor plan' });
+    }
     const userId = req.user.id;
     const { floors } = req.body;
 

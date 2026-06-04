@@ -41,13 +41,14 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
   const capacityPct = totalMaxCapacity > 0 ? Math.min(100, Math.round((totalCurrentStock / totalMaxCapacity) * 100)) : 0;
 
   const searchResults = inventoryItems.filter(m =>
-    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.id.toLowerCase().includes(searchQuery.toLowerCase())
+    (m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    m.id.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    !existingMaterials.some(em => em.id === m.id)
   );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSave({ ...zone!, ...formData, isSetup: true, position: zone?.position ?? { x: 40, y: 40, width: 20, height: 20 }, materials: zone?.materials ?? [] });
+    onSave({ ...zone!, ...formData, isSetup: true, position: zone?.position ?? { x: 40, y: 40, width: 20, height: 20 }, materials: existingMaterials });
   }
 
   const inputCls = "w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm text-[#1C1B1F] focus:outline-none focus:ring-1 focus:ring-[#2C742F]/30 bg-white";
@@ -283,7 +284,7 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
-            <button type="button" onClick={() => onSave({ ...zone!, ...formData, isSetup: false, position: zone?.position ?? { x: 40, y: 40, width: 20, height: 20 }, materials: zone?.materials ?? [] })}
+            <button type="button" onClick={() => onSave({ ...zone!, ...formData, isSetup: false, position: zone?.position ?? { x: 40, y: 40, width: 20, height: 20 }, materials: existingMaterials })}
               className="px-4 py-2.5 rounded-full border border-stone-200 text-sm font-semibold text-[#79747E] hover:bg-stone-50 transition-all">
               Edit Layout
             </button>

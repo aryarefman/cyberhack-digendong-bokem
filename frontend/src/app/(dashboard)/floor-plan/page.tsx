@@ -76,7 +76,8 @@ interface Floor {
 }
 
 export default function FloorPlanPage() {
-  const { user, canEdit, canDelete, isAdmin } = useAuth();
+  const { user, canEdit: _canEdit, canDelete, isAdmin } = useAuth();
+  const canEdit = () => isAdmin();
   const { t } = useLanguage();
   const [slots, setSlots] = useState<Slot[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -140,21 +141,23 @@ export default function FloorPlanPage() {
 
   const [showTemplatePreview, setShowTemplatePreview] = useState(false);
 
+
+
   const downloadCSVTemplate = () => {
     const csvContent = 
-      'id,name,theme,color,hasTempSensor,tempApiUrl,hasHumidSensor,humidApiUrl,x,y,width,height\n' +
-      'A-1,LOADING DOCK,blue,,true,http://localhost:4000/api/cold-chain,false,,2,2,90,14\n' +
-      'A-2,Equipment Set Up,blue,,false,,false,,2,18,22,46\n' +
-      'B-1,Tray Setting 1,purple,,false,,false,,26,18,22,14\n' +
-      'B-2,Tray Setting 2,purple,,false,,false,,49,18,22,14\n' +
-      'D-1,Cold Storage Facility,cyan,#06B6D4,true,http://localhost:4000/api/cold-chain,true,http://localhost:4000/api/cold-chain,74,18,24,46\n' +
-      'C-1,Hot Extraction Room,warm,,false,,false,,26,34,45,30\n' +
-      'C-3,Non-Production Machinery,green,,false,,false,,2,66,22,14\n' +
-      'C-4,Locker Room,green,,false,,false,,26,66,28,14\n' +
-      'C-5,QC & Lab Room,green,,false,,false,,56,66,15,14\n' +
-      'C-2,Packaging & Shipping,green,,false,,false,,74,66,24,30\n' +
-      'A-3,Receiving Area,blue,,false,,false,,2,82,22,14\n' +
-      'E-1,Hazardous Material Storage,hazard,#EF4444,true,http://localhost:4000/api/cold-chain,false,,26,82,45,14';
+      'id,name,theme,color,hasTempSensor,tempApiUrl,hasHumidSensor,humidApiUrl,x,y,width,height,materials\n' +
+      'A-1,LOADING DOCK,blue,,true,http://localhost:4000/api/cold-chain,false,,2,2,90,14,INV-001\n' +
+      'A-2,Equipment Set Up,blue,,false,,false,,2,18,22,46,\n' +
+      'B-1,Tray Setting 1,purple,,false,,false,,26,18,22,14,INV-003\n' +
+      'B-2,Tray Setting 2,purple,,false,,false,,49,18,22,14,\n' +
+      'D-1,Cold Storage Facility,cyan,#06B6D4,true,http://localhost:4000/api/cold-chain,true,http://localhost:4000/api/cold-chain,74,18,24,46,INV-007;INV-008\n' +
+      'C-1,Hot Extraction Room,warm,,false,,false,,26,34,45,30,INV-005\n' +
+      'C-3,Non-Production Machinery,green,,false,,false,,2,66,22,14,\n' +
+      'C-4,Locker Room,green,,false,,false,,26,66,28,14,\n' +
+      'C-5,QC & Lab Room,green,,false,,false,,56,66,15,14,\n' +
+      'C-2,Packaging & Shipping,green,,false,,false,,74,66,24,30,\n' +
+      'A-3,Receiving Area,blue,,false,,false,,2,82,22,14,\n' +
+      'E-1,Hazardous Material Storage,hazard,#EF4444,true,http://localhost:4000/api/cold-chain,false,,26,82,45,14,INV-006';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -311,9 +314,25 @@ export default function FloorPlanPage() {
   // Sync floor plan zones to backend DB (debounced)
   const syncZonesToDB = (currentFloors: Floor[]) => {
     if (syncDebounceRef.current) clearTimeout(syncDebounceRef.current);
-    syncDebounceRef.current = setTimeout(() => {
-      api.put('/zones', { floors: currentFloors }).catch(() => {});
+    syncDebounceRef.current = setTimeout(async () => {
+      try {
+        await api.put('/zones', { floors: currentFloors });
+      } catch {}
+      finally {
+        syncDebounceRef.current = null;
+      }
     }, 1500);
+  };
+
+  // Sync floor plan zones to backend DB immediately (for discrete layout actions)
+  const syncZonesToDBImmediate = async (currentFloors: Floor[]) => {
+    if (syncDebounceRef.current) {
+      clearTimeout(syncDebounceRef.current);
+      syncDebounceRef.current = null;
+    }
+    try {
+      await api.put('/zones', { floors: currentFloors });
+    } catch {}
   };
 
   // Unified helpers to update zones and floor plans in local state, global floors array, and local storage
@@ -338,7 +357,7 @@ export default function FloorPlanPage() {
   };
 
   // Add, rename, and delete floor functions
-  const addFloor = () => {
+  const addFloor = async () => {
     const newFloorId = `floor-${Date.now()}`;
     const newFloorName = `Layout ${floors.length + 1}`;
     const newFloor: Floor = {
@@ -352,11 +371,11 @@ export default function FloorPlanPage() {
     localStorage.setItem('aromasys_floors', JSON.stringify(updated));
     localStorage.setItem('aromasys_active_floor_id', newFloorId);
     setActiveFloorId(newFloorId);
-    syncZonesToDB(updated);
     setToast(`Layout baru "${newFloorName}" berhasil ditambahkan.`);
+    await syncZonesToDBImmediate(updated);
   };
 
-  const saveFloorName = (floorId: string) => {
+  const saveFloorName = async (floorId: string) => {
     if (editingFloorId === null) return;
     if (!editFloorNameInput.trim()) {
       setEditingFloorId(null);
@@ -365,9 +384,9 @@ export default function FloorPlanPage() {
     const updated = floors.map(f => f.id === floorId ? { ...f, name: editFloorNameInput.trim() } : f);
     setFloors(updated);
     localStorage.setItem('aromasys_floors', JSON.stringify(updated));
-    syncZonesToDB(updated);
     setEditingFloorId(null);
     setToast('Nama layout berhasil diperbarui.');
+    await syncZonesToDBImmediate(updated);
   };
 
   const deleteFloor = (floorId: string, floorName: string) => {
@@ -380,16 +399,18 @@ export default function FloorPlanPage() {
       `Apakah Anda yakin ingin menghapus layout "${floorName}" beserta seluruh zonanya?`,
       () => {
         closeConfirm();
-        const updated = floors.filter(f => f.id !== floorId);
-        setFloors(updated);
-        localStorage.setItem('aromasys_floors', JSON.stringify(updated));
-        if (activeFloorId === floorId) {
-          const nextActiveId = updated[0].id;
-          setActiveFloorId(nextActiveId);
-          localStorage.setItem('aromasys_active_floor_id', nextActiveId);
-        }
-        syncZonesToDB(updated);
-        setToast(`Layout "${floorName}" telah dihapus.`);
+        (async () => {
+          const updated = floors.filter(f => f.id !== floorId);
+          setFloors(updated);
+          localStorage.setItem('aromasys_floors', JSON.stringify(updated));
+          if (activeFloorId === floorId) {
+            const nextActiveId = updated[0].id;
+            setActiveFloorId(nextActiveId);
+            localStorage.setItem('aromasys_active_floor_id', nextActiveId);
+          }
+          setToast(`Layout "${floorName}" telah dihapus.`);
+          await syncZonesToDBImmediate(updated);
+        })();
       }
     );
   };
@@ -422,19 +443,20 @@ export default function FloorPlanPage() {
     } catch {}
   };
 
-  // Load zones from DB if localStorage is empty (first time or cleared)
+  // Load zones from DB
   const loadZonesFromDB = async () => {
     try {
-      const stored = localStorage.getItem('aromasys_floors');
-      if (stored) return; // localStorage has data, skip DB load
       const data = await api.get<{ success: boolean; data: any }>('/zones');
       if (data.success && data.data) {
-        const floors: Floor[] = data.data;
-        setFloors(floors);
-        localStorage.setItem('aromasys_floors', JSON.stringify(floors));
-        if (floors.length > 0) {
-          setActiveFloorId(floors[0].id);
-          localStorage.setItem('aromasys_active_floor_id', floors[0].id);
+        const dbFloors: Floor[] = data.data;
+        setFloors(dbFloors);
+        localStorage.setItem('aromasys_floors', JSON.stringify(dbFloors));
+        const savedActiveId = localStorage.getItem('aromasys_active_floor_id');
+        if (savedActiveId && dbFloors.some(f => f.id === savedActiveId)) {
+          setActiveFloorId(savedActiveId);
+        } else if (dbFloors.length > 0) {
+          setActiveFloorId(dbFloors[0].id);
+          localStorage.setItem('aromasys_active_floor_id', dbFloors[0].id);
         }
       }
     } catch {}
@@ -446,6 +468,42 @@ export default function FloorPlanPage() {
     fetchTemperatureData();
     loadZonesFromDB();
   }, []);
+
+  // Poll database for real-time updates to floor plan
+  useEffect(() => {
+    if (dragState) return;
+
+    const pollInterval = setInterval(async () => {
+      // If a pending sync is in progress or debounced, skip polling to avoid race conditions
+      if (syncDebounceRef.current) return;
+      try {
+        const data = await api.get<{ success: boolean; data: any }>('/zones');
+        if (data.success && data.data) {
+          const dbFloors: Floor[] = data.data;
+          
+          const currentFloorsStr = localStorage.getItem('aromasys_floors');
+          const newFloorsStr = JSON.stringify(dbFloors);
+          
+          if (currentFloorsStr !== newFloorsStr) {
+            setFloors(dbFloors);
+            localStorage.setItem('aromasys_floors', newFloorsStr);
+            
+            const savedActiveId = localStorage.getItem('aromasys_active_floor_id');
+            if (savedActiveId && dbFloors.some(f => f.id === savedActiveId)) {
+              setActiveFloorId(savedActiveId);
+            } else if (dbFloors.length > 0) {
+              setActiveFloorId(dbFloors[0].id);
+              localStorage.setItem('aromasys_active_floor_id', dbFloors[0].id);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error polling zones:', err);
+      }
+    }, 3000); // 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [dragState]);
 
   // Dismiss toast after 3.5s
   useEffect(() => {
@@ -583,7 +641,7 @@ export default function FloorPlanPage() {
     setShowZoneModal(true);
   };
 
-  const handleSaveZone = (zoneData: InteractiveZone) => {
+  const handleSaveZone = async (zoneData: InteractiveZone) => {
     const updatedZones = [...interactiveZones];
     const existIdx = updatedZones.findIndex(z => z.id === zoneData.id);
 
@@ -601,28 +659,69 @@ export default function FloorPlanPage() {
 
     updateActiveFloorZones(updatedZones);
 
-    // Persist material location changes to DB (best-effort)
-    for (const mat of zoneMaterials) {
-      const existing = inventoryItems.find(i => i.id === mat.id);
-      if (existing && (existing as any).location !== zoneData.id) {
-        api.put('/inventory', {
-          id: existing.id,
-          name: existing.name,
-          category: existing.category,
-          qty: existing.qty,
-          unit: existing.unit,
-          location: zoneData.id,
-          zone: zoneData.zone || (zoneData.id.charAt(0).match(/[A-E]/) ? zoneData.id.charAt(0) : 'C'),
-          dateIn: (existing as any).dateIn || new Date().toISOString().split('T')[0],
-          expiry: (existing as any).expiry || new Date().toISOString().split('T')[0],
-          status: (existing as any).status || 'Aman',
-          user: { name: user?.name || 'Admin', role: user?.role || 'Admin' }
-        }).catch(() => {});
+    const oldZone = interactiveZones.find(z => z.id === zoneData.id);
+    const oldMaterials = oldZone?.materials || [];
+    const newMaterialIds = new Set(zoneMaterials.map(m => m.id));
+    const removedMaterials = oldMaterials.filter(m => !newMaterialIds.has(m.id));
+
+    try {
+      const promises = [];
+
+      // Persist material location changes to DB (best-effort) for current materials
+      for (const mat of zoneMaterials) {
+        const existing = inventoryItems.find(i => i.id === mat.id);
+        if (existing && (existing as any).location !== zoneData.id) {
+          promises.push(
+            api.put('/inventory', {
+              id: existing.id,
+              name: existing.name,
+              category: existing.category,
+              qty: existing.qty,
+              unit: existing.unit,
+              location: zoneData.id,
+              zone: zoneData.zone || (zoneData.id.charAt(0).match(/[A-E]/) ? zoneData.id.charAt(0) : 'C'),
+              dateIn: (existing as any).dateIn || new Date().toISOString().split('T')[0],
+              expiry: (existing as any).expiry || new Date().toISOString().split('T')[0],
+              status: (existing as any).status || 'Aman',
+              user: { name: user?.name || 'Admin', role: user?.role || 'Admin' }
+            })
+          );
+        }
       }
+
+      // Persist material location changes to DB for removed materials
+      for (const mat of removedMaterials) {
+        const existing = inventoryItems.find(i => i.id === mat.id);
+        if (existing) {
+          promises.push(
+            api.put('/inventory', {
+              id: existing.id,
+              name: existing.name,
+              category: existing.category,
+              qty: existing.qty,
+              unit: existing.unit,
+              location: 'UNASSIGNED',
+              zone: 'C',
+              dateIn: (existing as any).dateIn || new Date().toISOString().split('T')[0],
+              expiry: (existing as any).expiry || new Date().toISOString().split('T')[0],
+              status: (existing as any).status || 'Aman',
+              user: { name: user?.name || 'Admin', role: user?.role || 'Admin' }
+            })
+          );
+        }
+      }
+
+      if (promises.length > 0) {
+        await Promise.all(promises);
+      }
+    } catch (err) {
+      console.error('Failed to sync material locations to DB:', err);
     }
 
     setShowZoneModal(false);
     setToast(`Zone ${zoneData.name} saved!`);
+    fetchInventory();
+    fetchSlots();
   };
 
   const handleAddMaterialToZone = (material: Material) => {
@@ -647,9 +746,11 @@ export default function FloorPlanPage() {
   }
 
   const resetToDefault = () => {
+    const currentFloor = floors.find(f => f.id === activeFloorId);
+    const floorName = currentFloor?.name || 'Layout ini';
     showConfirm(
       'Reset ke Default',
-      'Apakah Anda yakin ingin mengatur ulang semua layout dan zona ke default? Semua perubahan kustom Anda akan hilang.',
+      `Apakah Anda yakin ingin mengatur ulang "${floorName}" ke default? Semua perubahan kustom pada layout ini akan hilang.`,
       () => {
         closeConfirm();
         doReset();
@@ -659,27 +760,28 @@ export default function FloorPlanPage() {
     );
   };
 
-  const doReset = () => {
-    localStorage.removeItem(STORAGE_KEYS.DELETED_DEFAULT_ZONES);
-    localStorage.removeItem('aromasys_applied_recommendations');
-    setDeletedDefaultZones([]);
+  const doReset = async () => {
     const defaultZones = getDefaultZones([]);
-    const initialFloor: Floor = {
-      id: 'floor-1',
-      name: 'Layout 1',
-      customFloorPlan: null,
-      interactiveZones: defaultZones
-    };
-    const defaultFloors = [initialFloor];
-    setFloors(defaultFloors);
-    localStorage.setItem('aromasys_floors', JSON.stringify(defaultFloors));
-    setActiveFloorId('floor-1');
-    localStorage.setItem('aromasys_active_floor_id', 'floor-1');
+    const updatedFloors = floors.map(f => {
+      if (f.id === activeFloorId) {
+        return {
+          ...f,
+          customFloorPlan: null,
+          interactiveZones: defaultZones
+        };
+      }
+      return f;
+    });
+
+    setFloors(updatedFloors);
+    localStorage.setItem('aromasys_floors', JSON.stringify(updatedFloors));
     setInteractiveZones(defaultZones);
     setCustomFloorPlan(null);
     setUndoHistory([]);
-    syncZonesToDB(defaultFloors);
-    setToast('Semua layout telah diatur ulang ke default.');
+    await syncZonesToDBImmediate(updatedFloors);
+
+    const currentFloor = floors.find(f => f.id === activeFloorId);
+    setToast(`Layout "${currentFloor?.name || 'aktif'}" telah diatur ulang ke default.`);
   };
 
   // Sync database inventory items to all interactive zones
@@ -1209,6 +1311,7 @@ interface CSVParsedZone {
   y?: number;
   width?: number;
   height?: number;
+  materials?: string;
 }
 
 function parseCSVContent(textContent: string): CSVParsedZone[] {
@@ -1242,6 +1345,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
     const tempApiUrl = row.tempapiurl || '';
     const hasHumidSensor = row.hashumidsensor === 'true' || row.hashumidsensor === '1' || row.hashumidsensor === 'yes';
     const humidApiUrl = row.humidapiurl || '';
+    const materials = row.materials || '';
 
     const parsed: CSVParsedZone = {
       id,
@@ -1251,7 +1355,8 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
       hasTempSensor,
       tempApiUrl,
       hasHumidSensor,
-      humidApiUrl
+      humidApiUrl,
+      materials
     };
 
     if (row.x !== undefined && row.x !== '') parsed.x = Number(row.x);
@@ -1263,9 +1368,56 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
   }
   return results;
 }
-
-  // Upload Floor Plan submission
   const handleUploadSubmit = async () => {
+    // Helper to parse and persist materials from CSV string to a specific zone location
+    const parseAndPersistCsvMaterials = async (materialsStr: string, zoneId: string, zoneLetter: string) => {
+      let parsedMaterials: Material[] = [];
+      if (!materialsStr) return parsedMaterials;
+
+      // Support semi-colon, comma, or pipe as separators
+      const matIds = materialsStr.split(/[;,|]/).map(id => id.trim()).filter(Boolean);
+      const promises = [];
+
+      for (const id of matIds) {
+        const match = inventoryItems.find(i => String(i.id).toLowerCase() === id.toLowerCase());
+        if (match) {
+          parsedMaterials.push({
+            id: String(match.id),
+            name: match.name,
+            qty: match.qty,
+            unit: match.unit,
+            maxCapacity: 500
+          });
+
+          // Sync location in backend DB
+          promises.push(
+            api.put('/inventory', {
+              id: match.id,
+              name: match.name,
+              category: match.category,
+              qty: match.qty,
+              unit: match.unit,
+              location: zoneId,
+              zone: zoneLetter,
+              dateIn: (match as any).dateIn || new Date().toISOString().split('T')[0],
+              expiry: (match as any).expiry || new Date().toISOString().split('T')[0],
+              status: (match as any).status || 'Aman',
+              user: { name: user?.name || 'Admin', role: user?.role || 'Admin' }
+            })
+          );
+        }
+      }
+
+      if (promises.length > 0) {
+        try {
+          await Promise.all(promises);
+        } catch (err) {
+          console.error('Failed to update inventory locations during CSV import:', err);
+        }
+      }
+      return parsedMaterials;
+    };
+
     let csvZones: CSVParsedZone[] = [];
     if (uploadPdfFile && uploadPdfFile.name.toLowerCase().endsWith('.csv')) {
       try {
@@ -1289,17 +1441,21 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
         setIsUploading(true);
         setUploadError(null);
         try {
-          const updatedZones: InteractiveZone[] = csvZones.map((csvZone, idx) => {
-            // Pre-populate materials
-            const matchedMaterials = inventoryItems
-              .filter(i => String(i.location).toLowerCase() === String(csvZone.id).toLowerCase())
-              .map(match => ({
+          const updatedZonesPromises = csvZones.map(async (csvZone, idx) => {
+            const zoneLetter = csvZone.theme || (csvZone.id.charAt(0).match(/[A-E]/) ? csvZone.id.charAt(0) : 'C');
+            let csvMappedMaterials = await parseAndPersistCsvMaterials(csvZone.materials || '', csvZone.id, zoneLetter);
+
+            // Fallback to existing materials in DB if CSV column was empty
+            if (csvMappedMaterials.length === 0) {
+              const dbMaterials = inventoryItems.filter(i => String(i.location).toLowerCase() === String(csvZone.id).toLowerCase());
+              csvMappedMaterials = dbMaterials.map(match => ({
                 id: String(match.id),
                 name: match.name,
                 qty: match.qty,
                 unit: match.unit,
                 maxCapacity: 500
               }));
+            }
 
             return {
               id: csvZone.id,
@@ -1316,14 +1472,17 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
               tempApiUrl: csvZone.tempApiUrl,
               hasHumidSensor: csvZone.hasHumidSensor,
               humidApiUrl: csvZone.humidApiUrl,
-              materials: matchedMaterials
+              materials: csvMappedMaterials
             };
           });
 
+          const updatedZones = await Promise.all(updatedZonesPromises);
           updateActiveFloorZones(updatedZones);
           setShowUploadPanel(false);
           setUploadPdfFile(null);
           setToast(`Metadata CSV berhasil diimpor! ${updatedZones.length} zona kustom dikonfigurasi.`);
+          fetchInventory();
+          fetchSlots();
         } catch (err: any) {
           setUploadError(err.message || 'Gagal memproses file CSV.');
         } finally {
@@ -1354,6 +1513,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
         hasHumidSensor?: boolean;
         humidApiUrl?: string;
         color?: string;
+        materials?: string;
       }> = [];
 
       if (csvZones.length > 0) {
@@ -1372,7 +1532,8 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
           tempApiUrl: cz.tempApiUrl,
           hasHumidSensor: cz.hasHumidSensor,
           humidApiUrl: cz.humidApiUrl,
-          color: cz.color
+          color: cz.color,
+          materials: cz.materials
         }));
       } else if (uploadPdfFile && !uploadPdfFile.name.toLowerCase().endsWith('.csv')) {
         // Image + PDF: send to backend for enhanced zone detection
@@ -1456,17 +1617,22 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
       updateActiveFloorPlan(planData);
 
       if (extractedZones.length > 0) {
-        const mapped: InteractiveZone[] = extractedZones.map(z => {
+        const mappedPromises = extractedZones.map(async z => {
           const zoneId = z.id || `Z-${Math.random().toString(36).substring(2, 6)}`;
-          const matchedMaterials = inventoryItems
-            .filter(i => String(i.location).toLowerCase() === String(zoneId).toLowerCase())
-            .map(match => ({
+          const zoneLetter = z.theme || (zoneId.charAt(0).match(/[A-E]/) ? zoneId.charAt(0) : 'C');
+          let csvMappedMaterials = await parseAndPersistCsvMaterials(z.materials || '', zoneId, zoneLetter);
+
+          if (csvMappedMaterials.length === 0) {
+            const dbMaterials = inventoryItems.filter(i => String(i.location).toLowerCase() === String(zoneId).toLowerCase());
+            csvMappedMaterials = dbMaterials.map(match => ({
               id: String(match.id),
               name: match.name,
               qty: match.qty,
               unit: match.unit,
               maxCapacity: 500
             }));
+          }
+
           return {
             id: zoneId,
             name: z.name || 'Detected Zone',
@@ -1477,9 +1643,10 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
             humidApiUrl: z.humidApiUrl || '',
             theme: z.theme || 'green',
             color: z.color || '',
-            materials: matchedMaterials
+            materials: csvMappedMaterials
           };
         });
+        const mapped = await Promise.all(mappedPromises);
         updateActiveFloorZones(mapped);
       }
 
@@ -1489,6 +1656,8 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
       setUploadPdfFile(null);
       setUploadError(null);
       setToast(`Floor plan uploaded successfully!${extractedZones.length > 0 ? ` ${extractedZones.length} zones initialized from metadata.` : ''}`);
+      fetchInventory();
+      fetchSlots();
     } catch {
       setUploadError('Failed to upload floor plan. Please try again.');
     } finally {

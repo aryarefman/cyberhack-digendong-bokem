@@ -164,7 +164,7 @@ function ZoneSummaryCards({
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#D7E5D8] h-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-[#1C1B1F]">Zone Summary</h3>
-        <Link href="/floor-plan" className="text-sm text-[#2C742F] font-semibold hover:underline">
+        <Link href="/cold-chain" className="text-sm text-[#2C742F] font-semibold hover:underline">
           View All
         </Link>
       </div>
