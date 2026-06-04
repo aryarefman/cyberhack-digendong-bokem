@@ -133,9 +133,9 @@ router.put('/', requireAuth, async (req, res) => {
 
       await client.query(
         `INSERT INTO slots (id, zone, row, col, occupied, item_id)
-         VALUES ($1, $2, $3, $4, 
-                 EXISTS(SELECT 1 FROM inventory WHERE location = $1), 
-                 (SELECT id FROM inventory WHERE location = $1 LIMIT 1))
+         VALUES ($1::varchar, $2, $3, $4, 
+                 EXISTS(SELECT 1 FROM inventory WHERE location = $1::varchar), 
+                 (SELECT id FROM inventory WHERE location = $1::varchar LIMIT 1))
          ON CONFLICT (id)
          DO UPDATE SET zone = $2, row = $3, col = $4,
                        occupied = EXISTS(SELECT 1 FROM inventory WHERE location = EXCLUDED.id),
