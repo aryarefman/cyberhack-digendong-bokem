@@ -26,6 +26,11 @@ router.post('/', upload.fields([
       const imageFile = req.files?.image?.[0];
       const pdfFile = req.files?.pdf?.[0];
 
+      console.log('--- Image File Upload Received ---');
+      console.log('Originalname:', imageFile?.originalname);
+      console.log('Mimetype:', imageFile?.mimetype);
+      console.log('Size:', imageFile?.size);
+
       // Validate: at least an image must be provided
       if (!imageFile) {
         return res.status(400).json({ success: false, error: 'An image file is required (PNG, JPG, or WEBP)' });
@@ -122,6 +127,13 @@ For each zone detected, determine:
    - "warm" for hot processing, extraction, or dry storage
    - "green" for general production, QC, labs, offices
    - "hazard" for hazardous material storage, chemical areas
+5. A symbol/icon category based on context:
+   - "snowflake" for cold storage, freezing, cooling zones, or ice packing areas
+   - "flame" for hot processing, baking ovens, heating zones, kitchens, or heat extraction areas
+   - "door" for security checkpoints, main entrance, exit gates, lockups, or restricted zones
+   - "wash" for wet areas, washing rooms, sanitation, chemical cleanup, liquids, or hydration zones
+   - "machinery" for generator rooms, server hubs, conveyer belts, machine operations, or heavy tooling
+   - "none" for generic dry storage, loading bays, offices, or other standard storage areas
 
 Return ONLY a valid JSON array with no markdown formatting.
 Each object must have:
@@ -129,6 +141,7 @@ Each object must have:
 - name: string (descriptive name)
 - position: object with x, y, width, height as percentage values (0-100)
 - theme: string (one of: blue, cyan, purple, warm, green, hazard)
+- iconType: string (one of: snowflake, flame, door, wash, machinery, none)
 
 Be precise with positions — they should closely match where zones appear in the image.
 If you cannot identify any zones, return an empty array [].`;
@@ -149,6 +162,13 @@ For each zone detected, determine:
    - "warm" for hot processing, extraction, or dry storage
    - "green" for general production, QC, labs, offices
    - "hazard" for hazardous material storage, chemical areas
+5. A symbol/icon category based on context:
+   - "snowflake" for cold storage, freezing, cooling zones, or ice packing areas
+   - "flame" for hot processing, baking ovens, heating zones, kitchens, or heat extraction areas
+   - "door" for security checkpoints, main entrance, exit gates, lockups, or restricted zones
+   - "wash" for wet areas, washing rooms, sanitation, chemical cleanup, liquids, or hydration zones
+   - "machinery" for generator rooms, server hubs, conveyer belts, machine operations, or heavy tooling
+   - "none" for generic dry storage, loading bays, offices, or other standard storage areas
 
 Return ONLY a valid JSON array with no markdown formatting.
 Each object must have:
@@ -156,6 +176,7 @@ Each object must have:
 - name: string (descriptive name)
 - position: object with x, y, width, height as percentage values (0-100)
 - theme: string (one of: blue, cyan, purple, warm, green, hazard)
+- iconType: string (one of: snowflake, flame, door, wash, machinery, none)
 
 Be precise with positions — they should closely match where zones appear in the image.
 If you cannot identify any zones, return an empty array [].`;

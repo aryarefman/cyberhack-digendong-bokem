@@ -24,8 +24,11 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
     humidApiUrl: zone?.humidApiUrl ?? '',
     color: zone?.color ?? '',
     iconType: zone?.iconType ?? 'none',
+    theme: zone?.theme ?? 'green',
   });
 
+  const [isColorManuallyEdited, setIsColorManuallyEdited] = useState(!!zone?.name);
+  const [isIconManuallyEdited, setIsIconManuallyEdited] = useState(!!zone?.name);
   const [isSearchingMaterial, setIsSearchingMaterial] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [inventoryItems, setInventoryItems] = useState<Material[]>([]);
@@ -45,6 +48,66 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
     m.id.toLowerCase().includes(searchQuery.toLowerCase())) &&
     !existingMaterials.some(em => em.id === m.id)
   );
+
+  function detectContext(name: string): { color: string; theme: string; iconType: string } | null {
+    const val = name.toLowerCase();
+    if (!val) return null;
+
+    // 1. Cold Storage (Cyan / Snowflake)
+    if (val.includes('cold') || val.includes('dingin') || val.includes('freeze') || val.includes('es') || val.includes('cool') || val.includes('chiller') || val.includes('refrigerat') || val.includes('beku')) {
+      return { color: '#06b6d4', theme: 'cyan', iconType: 'snowflake' };
+    }
+    // 2. Hot Storage / Hot Process (Orange / Flame)
+    if (val.includes('hot') || val.includes('panas') || val.includes('extraction') || val.includes('oven') || val.includes('heat') || val.includes('warm') || val.includes('bake') || val.includes('ekstraksi') || val.includes('rebus') || val.includes('bakar')) {
+      return { color: '#f97316', theme: 'warm', iconType: 'flame' };
+    }
+    // 3. Security / Restricted / Door (Red / Door/Lock)
+    if (val.includes('security') || val.includes('guard') || val.includes('lock') || val.includes('restrict') || val.includes('door') || val.includes('pintu') || val.includes('gerbang') || val.includes('masuk') || val.includes('keluar') || val.includes('gate') || val.includes('entrance') || val.includes('exit') || val.includes('aman') || val.includes('kunci')) {
+      return { color: '#ef4444', theme: 'hazard', iconType: 'door' };
+    }
+    // 4. Wet / Liquid / Wash (Purple / Wash/Droplet)
+    if (val.includes('wash') || val.includes('liquid') || val.includes('cair') || val.includes('clean') || val.includes('water') || val.includes('air') || val.includes('wet') || val.includes('cuci') || val.includes('wastafel') || val.includes('sanitasi') || val.includes('cleanup')) {
+      return { color: '#8b5cf6', theme: 'purple', iconType: 'wash' };
+    }
+    // 5. Machinery / Generator / Machine (Blue / Machinery)
+    if (val.includes('machine') || val.includes('mesin') || val.includes('generator') || val.includes('power') || val.includes('server') || val.includes('engine') || val.includes('conveyer') || val.includes('tool') || val.includes('alat') || val.includes('equipment') || val.includes('listrik')) {
+      return { color: '#3b82f6', theme: 'blue', iconType: 'machinery' };
+    }
+    // 6. Hazard / Chemical (Red / None)
+    if (val.includes('hazard') || val.includes('chemical') || val.includes('toxic') || val.includes('dangerous') || val.includes('poison') || val.includes('flammable') || val.includes('biohazard') || val.includes('racun') || val.includes('bahaya') || val.includes('kimia') || val.includes('nuklir')) {
+      return { color: '#ef4444', theme: 'hazard', iconType: 'none' };
+    }
+    // 7. Loading / Logistics / Dock (Blue / None)
+    if (val.includes('loading') || val.includes('receiving') || val.includes('shipping') || val.includes('dock') || val.includes('logistics') || val.includes('transit') || val.includes('delivery') || val.includes('kirim') || val.includes('terima') || val.includes('gudang') || val.includes('bongkar') || val.includes('muat') || val.includes('ekspedisi')) {
+      return { color: '#3b82f6', theme: 'blue', iconType: 'none' };
+    }
+
+    return { color: '#10b981', theme: 'green', iconType: 'none' };
+  }
+
+  const handleNameChange = (newName: string) => {
+    if (!newName) {
+      setIsColorManuallyEdited(false);
+      setIsIconManuallyEdited(false);
+      setFormData(f => ({ ...f, name: newName, color: '', theme: 'green', iconType: 'none' }));
+      return;
+    }
+
+    setFormData(f => {
+      const updated = { ...f, name: newName };
+      const detected = detectContext(newName);
+      if (detected) {
+        if (!isColorManuallyEdited) {
+          updated.color = detected.color;
+          updated.theme = detected.theme;
+        }
+        if (!isIconManuallyEdited) {
+          updated.iconType = detected.iconType;
+        }
+      }
+      return updated;
+    });
+  };
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,7 +141,7 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
           {/* Zone Name */}
           <div>
             <label className="text-xs font-semibold text-[#79747E] block mb-1">Nama Zona *</label>
-            <input type="text" value={formData.name} onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
+            <input type="text" value={formData.name} onChange={e => handleNameChange(e.target.value)}
               required placeholder="e.g. Cold Storage" className={inputCls} />
           </div>
 
@@ -87,18 +150,21 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
             <label className="text-xs font-semibold text-[#79747E] block">Warna Area Gudang</label>
             <div className="flex items-center gap-2 flex-wrap">
               {[
-                { hex: '#3b82f6', label: 'Blue (A)' },
-                { hex: '#8b5cf6', label: 'Purple (B)' },
-                { hex: '#10b981', label: 'Green (C)' },
-                { hex: '#06b6d4', label: 'Cyan (D)' },
-                { hex: '#ef4444', label: 'Red (E)' },
-                { hex: '#f97316', label: 'Orange' },
-                { hex: '#78716c', label: 'Grey' },
+                { hex: '#3b82f6', label: 'Blue (A)', theme: 'blue' },
+                { hex: '#8b5cf6', label: 'Purple (B)', theme: 'purple' },
+                { hex: '#10b981', label: 'Green (C)', theme: 'green' },
+                { hex: '#06b6d4', label: 'Cyan (D)', theme: 'cyan' },
+                { hex: '#ef4444', label: 'Red (E)', theme: 'hazard' },
+                { hex: '#f97316', label: 'Orange', theme: 'warm' },
+                { hex: '#78716c', label: 'Grey', theme: 'neutral' },
               ].map(preset => (
                 <button
                   key={preset.hex}
                   type="button"
-                  onClick={() => setFormData(f => ({ ...f, color: preset.hex }))}
+                  onClick={() => {
+                    setFormData(f => ({ ...f, color: preset.hex, theme: preset.theme }));
+                    setIsColorManuallyEdited(true);
+                  }}
                   className="w-7 h-7 rounded-full border-2 transition-all relative flex items-center justify-center hover:scale-105 active:scale-95"
                   style={{
                     backgroundColor: preset.hex,
@@ -118,7 +184,11 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
                 <input
                   type="color"
                   value={formData.color || '#10b981'}
-                  onChange={e => setFormData(f => ({ ...f, color: e.target.value }))}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(f => ({ ...f, color: val, theme: 'neutral' }));
+                    setIsColorManuallyEdited(true);
+                  }}
                   className="absolute inset-0 opacity-0 w-0 h-0 cursor-pointer"
                 />
                 <span className="w-4 h-4 rounded-full border border-stone-300" style={{ backgroundColor: formData.color || '#10b981' }} />
@@ -145,7 +215,10 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
                   <button
                     key={opt.type}
                     type="button"
-                    onClick={() => setFormData(f => ({ ...f, iconType: opt.type }))}
+                    onClick={() => {
+                      setFormData(f => ({ ...f, iconType: opt.type }));
+                      setIsIconManuallyEdited(true);
+                    }}
                     className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all active:scale-95 ${
                       isSelected
                         ? 'bg-[#2C742F]/10 border-[#2C742F] text-[#2C742F]'

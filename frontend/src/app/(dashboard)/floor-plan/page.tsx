@@ -1303,6 +1303,7 @@ interface CSVParsedZone {
   name: string;
   theme: string;
   color: string;
+  iconType?: string;
   hasTempSensor: boolean;
   tempApiUrl: string;
   hasHumidSensor: boolean;
@@ -1341,6 +1342,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
     const name = row.name || `Zone ${id}`;
     const theme = row.theme || 'green';
     const color = row.color || '';
+    const iconType = row.icontype || row.icon || 'none';
     const hasTempSensor = row.hastempsensor === 'true' || row.hastempsensor === '1' || row.hastempsensor === 'yes';
     const tempApiUrl = row.tempapiurl || '';
     const hasHumidSensor = row.hashumidsensor === 'true' || row.hashumidsensor === '1' || row.hashumidsensor === 'yes';
@@ -1352,6 +1354,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
       name,
       theme,
       color,
+      iconType,
       hasTempSensor,
       tempApiUrl,
       hasHumidSensor,
@@ -1481,6 +1484,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
         humidApiUrl?: string;
         color?: string;
         materials?: string;
+        iconType?: string;
       }> = [];
 
       if (uploadPdfFile && !uploadPdfFile.name.toLowerCase().endsWith('.csv')) {
@@ -1544,6 +1548,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
               },
               theme: ['blue', 'cyan', 'purple', 'warm', 'green', 'hazard'].includes(z.theme) ? z.theme : 'green',
               color: z.color || '',
+              iconType: ['snowflake', 'flame', 'door', 'wash', 'machinery', 'none'].includes(z.iconType) ? z.iconType : 'none',
             }));
 
             // Merge CSV details into Gemini-detected zones if CSV was uploaded
@@ -1559,6 +1564,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
                     name: match.name || ez.name,
                     theme: match.theme || ez.theme,
                     color: match.color || ez.color,
+                    iconType: match.iconType || ez.iconType || 'none',
                     hasTempSensor: match.hasTempSensor,
                     tempApiUrl: match.tempApiUrl,
                     hasHumidSensor: match.hasHumidSensor,
@@ -1632,6 +1638,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
             humidApiUrl: z.humidApiUrl || '',
             theme: z.theme || 'green',
             color: z.color || '',
+            iconType: z.iconType || 'none',
             materials: csvMappedMaterials
           };
         });
