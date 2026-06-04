@@ -1369,6 +1369,24 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
   return results;
 }
   const handleUploadSubmit = async () => {
+    // Helper to identify and handle format/validation errors properly
+    const handleUploadError = (err: any) => {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      const isFormatError = errorMsg.includes('format') || 
+                           errorMsg.includes('Format') ||
+                           errorMsg.includes('required') || 
+                           errorMsg.includes('Accepted') || 
+                           errorMsg.includes('accept') ||
+                           errorMsg.includes('Format file tidak didukung') ||
+                           errorMsg.includes('Unsupported');
+      if (isFormatError) {
+        setUploadError(`Kesalahan format file: ${errorMsg}`);
+        setIsUploading(false);
+        return true;
+      }
+      return false;
+    };
+
     // Helper to parse and persist materials from CSV string to a specific zone location
     const parseAndPersistCsvMaterials = async (materialsStr: string, zoneId: string, zoneLetter: string) => {
       let parsedMaterials: Material[] = [];
@@ -1484,8 +1502,23 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
           }
         } catch (err) {
           console.error('Backend floor plan processing error:', err);
-          setUploadError(err instanceof Error ? err.message : 'Failed to process floor plan with PDF. Please try again.');
+          if (handleUploadError(err)) return;
+
+          // Otherwise fall back to upload-only
+          setUploadError('Layanan AI sedang tidak tersedia. Floor plan akan disimpan dalam mode upload-only tanpa deteksi zona otomatis. Anda dapat menambahkan zona secara manual setelah upload.');
+          const planData: CustomFloorPlan = {
+            imageDataUrl,
+            fileName: uploadImageFile.name,
+            uploadedAt: new Date().toISOString(),
+            zones: []
+          };
+          updateActiveFloorPlan(planData);
+          setShowUploadPanel(false);
+          setUploadImageFile(null);
+          setUploadImagePreview(null);
+          setUploadPdfFile(null);
           setIsUploading(false);
+          setToast('Floor plan uploaded (mode upload-only — tambahkan zona secara manual).');
           return;
         }
       } else {
@@ -1541,6 +1574,9 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
           }
         } catch (err) {
           console.error('Backend floor plan zone detection error:', err);
+          if (handleUploadError(err)) return;
+
+          // Otherwise fall back to upload-only
           setUploadError('Layanan AI sedang tidak tersedia. Floor plan akan disimpan dalam mode upload-only tanpa deteksi zona otomatis. Anda dapat menambahkan zona secara manual setelah upload.');
           
           const planData: CustomFloorPlan = {
