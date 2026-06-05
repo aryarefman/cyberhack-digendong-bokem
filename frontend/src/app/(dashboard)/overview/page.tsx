@@ -17,6 +17,7 @@ import { calculateUtilization } from "@/lib/dashboard";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { ZONE_TEMP_THRESHOLDS } from "@/lib/constants";
+import { useNotifications } from "@/lib/notifications";
 import type { InventoryItem, AuditLog } from "@/types";
 import {
   LineChart,
@@ -135,6 +136,8 @@ function ZoneSummaryCards({
 }: {
   data?: Array<{ zone: string; itemCount: number; totalSlots: number; capacityPercent: number }>;
 }) {
+  const { lang } = useLanguage();
+
   if (!data || data.length === 0) {
     return (
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#D7E5D8]">
@@ -154,21 +157,42 @@ function ZoneSummaryCards({
     };
   });
 
+  const overcapacityZones = chartData.filter((d) => d.capacity > 100);
+
   const getBarColor = (capacity: number) => {
     if (capacity > 80) return "#EA4B48";
     if (capacity >= 50) return "#F59E0B";
     return "#2C742F";
   };
 
+  const maxCapacityPct = Math.max(100, ...chartData.map((d) => d.capacity));
+
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#D7E5D8] h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-[#1C1B1F]">Zone Summary</h3>
-        <Link href="/cold-chain" className="text-sm text-[#2C742F] font-semibold hover:underline">
-          View All
-        </Link>
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#D7E5D8] h-full min-h-[380px] flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-[#1C1B1F]">Zone Summary</h3>
+          <Link href="/cold-chain" className="text-sm text-[#2C742F] font-semibold hover:underline">
+            View All
+          </Link>
+        </div>
+
+        {overcapacityZones.length > 0 && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-[#EA4B48] animate-pulse">
+            <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+            <div className="text-xs">
+              <span className="font-bold">
+                {lang === 'id' ? 'Peringatan Overcapacity!' : 'Overcapacity Alert!'}
+              </span>{" "}
+              {lang === 'id'
+                ? `Zona ${overcapacityZones.map((z) => z.name).join(", ")} telah melebihi kapasitas maksimum (100%).`
+                : `Zone ${overcapacityZones.map((z) => z.name).join(", ")} has exceeded maximum capacity (100%).`}
+            </div>
+          </div>
+        )}
       </div>
-      <div className="w-full h-[180px] sm:h-[220px]">
+
+      <div className="w-full h-[240px] flex-1 mt-2">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
@@ -182,7 +206,7 @@ function ZoneSummaryCards({
               tick={{ fontSize: 12, fill: "#79747E" }}
               axisLine={{ stroke: "#C2C9B6" }}
               tickLine={false}
-              domain={[0, 100]}
+              domain={[0, maxCapacityPct]}
               unit="%"
             />
             <Tooltip
@@ -192,7 +216,11 @@ function ZoneSummaryCards({
                 borderRadius: "8px",
                 fontSize: "13px",
               }}
-              formatter={(value: any) => [`${value}%`, "Capacity"]}
+              formatter={(value: any) => {
+                const isOver = value > 100;
+                const label = isOver ? (lang === 'id' ? ' (Overcapacity)' : ' (Overcapacity)') : '';
+                return [`${value}%${label}`, "Capacity"];
+              }}
               labelFormatter={(label) => `Zone ${label}`}
             />
             <Bar dataKey="capacity" radius={[6, 6, 0, 0]}>
@@ -355,9 +383,9 @@ function QuickStats({
   ];
 
   return (
-    <div className="bg-white rounded-2xl p-6 border border-[#D7E5D8] shadow-sm h-full">
+    <div className="bg-white rounded-2xl p-6 border border-[#D7E5D8] shadow-sm h-full min-h-[380px] flex flex-col">
       <h3 className="text-lg font-bold text-[#1C1B1F] mb-6">Quick Stats</h3>
-      <div className="flex items-center justify-around gap-2">
+      <div className="flex-1 flex items-center justify-around gap-2">
         {stats.map(({ value, label, percentage, color }) => (
           <CircleStat key={label} value={value} label={label} percentage={percentage} color={color} />
         ))}
@@ -419,6 +447,7 @@ function ActivityTimeline({ activities }: { activities: Array<{ id: number; time
 export default function DashboardPage() {
   const { user } = useAuth();
   const { t, lang } = useLanguage();
+  const { addNotification, notifications } = useNotifications();
 
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [activities, setActivities] = useState<AuditLog[]>([]);
@@ -426,6 +455,30 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dashboardStats, setDashboardStats] = useState<DashboardStatsResponse | null>(null);
+
+  useEffect(() => {
+    if (!dashboardStats?.zoneSummary) return;
+
+    dashboardStats.zoneSummary.forEach((zone) => {
+      const utilization = Math.round((zone.itemCount / zone.totalSlots) * 100);
+      if (utilization > 100) {
+        const notifId = 1000 + zone.zone.charCodeAt(0);
+        const alreadyExists = notifications.some((n) => n.id === notifId);
+        if (!alreadyExists) {
+          addNotification({
+            id: notifId,
+            type: "alert",
+            title: lang === "id" ? "Peringatan Overcapacity" : "Overcapacity Alert",
+            description: lang === "id"
+              ? `Zona ${zone.zone} telah melebihi kapasitas maksimum (${utilization}%).`
+              : `Zone ${zone.zone} has exceeded maximum capacity (${utilization}%).`,
+            href: "/overview",
+            isRead: false,
+          });
+        }
+      }
+    });
+  }, [dashboardStats, notifications, lang, addNotification]);
 
   const fetchDashboardData = async () => {
     setIsLoading(true);

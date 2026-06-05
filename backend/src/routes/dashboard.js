@@ -47,7 +47,7 @@ router.get('/stats', async (req, res) => {
         zone: row.zone,
         itemCount: totalQty,
         totalSlots: maxCapacity,
-        capacityPercent: Math.min(100, Math.round((totalQty / maxCapacity) * 100))
+        capacityPercent: Math.round((totalQty / maxCapacity) * 100)
       };
     });
 
