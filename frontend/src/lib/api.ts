@@ -131,6 +131,10 @@ export async function apiFetch<T = unknown>(
     ...(headers as Record<string, string>),
   };
 
+  if (rest.body instanceof FormData) {
+    delete mergedHeaders['Content-Type'];
+  }
+
   if (typeof window !== 'undefined') {
     const customKey = localStorage.getItem('aromasys_gemini_api_key');
     if (customKey) {
