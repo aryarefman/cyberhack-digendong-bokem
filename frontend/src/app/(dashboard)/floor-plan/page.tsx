@@ -1494,11 +1494,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
         formData.append('pdf', uploadPdfFile);
         
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api'}/floor-plan-upload`, {
-            method: 'POST',
-            body: formData
-          });
-          const data = await res.json();
+          const data = await api.postForm<{ success: boolean; zones: any[] }>('/floor-plan-upload', formData);
           if (data.success && data.zones) {
             extractedZones = data.zones;
           } else if (data.error) {
@@ -1538,11 +1534,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
         formData.append('image', uploadImageFile);
         
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api'}/floor-plan-upload`, {
-            method: 'POST',
-            body: formData
-          });
-          const data = await res.json();
+          const data = await api.postForm<{ success: boolean; zones: any[] }>('/floor-plan-upload', formData);
           if (data.success && data.zones) {
             extractedZones = data.zones.map((z: any, idx: number) => ({
               id: z.id || `Z-${idx + 1}`,
