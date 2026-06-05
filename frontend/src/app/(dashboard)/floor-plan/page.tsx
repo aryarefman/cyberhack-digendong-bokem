@@ -1340,6 +1340,7 @@ interface CSVParsedZone {
   width?: number;
   height?: number;
   materials?: string;
+  zone?: string;
 }
 
 function parseCSVContent(textContent: string): CSVParsedZone[] {
@@ -1375,6 +1376,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
     const hasHumidSensor = row.hashumidsensor === 'true' || row.hashumidsensor === '1' || row.hashumidsensor === 'yes';
     const humidApiUrl = row.humidapiurl || '';
     const materials = row.materials || '';
+    const zone = row.zone || '';
 
     const parsed: CSVParsedZone = {
       id,
@@ -1386,7 +1388,8 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
       tempApiUrl,
       hasHumidSensor,
       humidApiUrl,
-      materials
+      materials,
+      zone
     };
 
     if (row.x !== undefined && row.x !== '') parsed.x = Number(row.x);
@@ -1636,10 +1639,24 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
             );
           });
 
+          const firstChar = zoneId.charAt(0).toUpperCase();
+          const themeVal = match ? (match.theme || ez.theme) : (ez.theme);
+          const themeMap: Record<string, string> = {
+            blue: 'A',
+            purple: 'B',
+            warm: 'C',
+            green: 'C',
+            cyan: 'D',
+            hazard: 'E',
+            neutral: 'C'
+          };
+          const zoneLetter = (match && match.zone) || ((firstChar >= 'A' && firstChar <= 'Y') ? firstChar : (themeMap[themeVal || ''] || 'C'));
+
           if (match) {
             return {
               id: zoneId,
               name: match.name || ez.name || 'Detected Zone',
+              zone: zoneLetter,
               theme: match.theme || ez.theme || 'green',
               color: match.color || ez.color || '',
               iconType: (match.iconType && match.iconType !== 'none') ? match.iconType : (ez.iconType || 'none'),
@@ -1657,6 +1674,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
           return {
             id: zoneId,
             name: ez.name || 'Detected Zone',
+            zone: zoneLetter,
             theme: ez.theme || 'green',
             color: ez.color || '',
             iconType: ez.iconType || 'none',
@@ -1681,7 +1699,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
       if (finalZones.length > 0) {
         const mappedPromises = finalZones.map(async z => {
           const zoneId = z.id;
-          const zoneLetter = z.theme || (zoneId.charAt(0).match(/[A-E]/) ? zoneId.charAt(0) : 'C');
+          const zoneLetter = z.zone || 'C';
           let csvMappedMaterials = await parseAndPersistCsvMaterials(z.materials || '', zoneId, zoneLetter);
 
           if (csvMappedMaterials.length === 0) {
@@ -1698,6 +1716,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
           return {
             id: zoneId,
             name: z.name,
+            zone: zoneLetter,
             position: z.position,
             hasTempSensor: z.hasTempSensor,
             tempApiUrl: z.tempApiUrl,

@@ -111,7 +111,26 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSave({ ...zone!, ...formData, isSetup: true, position: zone?.position ?? { x: 40, y: 40, width: 20, height: 20 }, materials: existingMaterials });
+    const firstChar = formData.id.charAt(0).toUpperCase();
+    const themeMap: Record<string, string> = {
+      blue: 'A',
+      purple: 'B',
+      warm: 'C',
+      green: 'C',
+      cyan: 'D',
+      hazard: 'E',
+      neutral: 'C'
+    };
+    const zoneLetter = (firstChar >= 'A' && firstChar <= 'Y') ? firstChar : (themeMap[formData.theme || ''] || 'C');
+
+    onSave({ 
+      ...zone!, 
+      ...formData, 
+      zone: zoneLetter,
+      isSetup: true, 
+      position: zone?.position ?? { x: 40, y: 40, width: 20, height: 20 }, 
+      materials: existingMaterials 
+    });
   }
 
   const inputCls = "w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm text-[#1C1B1F] focus:outline-none focus:ring-1 focus:ring-[#2C742F]/30 bg-white";

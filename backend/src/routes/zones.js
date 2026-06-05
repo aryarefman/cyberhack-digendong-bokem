@@ -89,6 +89,9 @@ router.put('/', requireAuth, async (req, res) => {
     // Helper function to map themes to zone letters (A-E)
     function getZoneLetter(z) {
       if (z.zone && z.zone.length === 1) return z.zone.toUpperCase();
+      if (z.id && /^[A-Y](?:\b|[-_0-9])/i.test(z.id)) {
+        return z.id.charAt(0).toUpperCase();
+      }
       const theme = z.theme || 'green';
       const map = {
         blue: 'A',
@@ -104,12 +107,12 @@ router.put('/', requireAuth, async (req, res) => {
 
     const zoneIdsArray = Array.from(allZoneIds);
 
-    // 3. Remove slots that are no longer in the floor plan layouts
+     // 3. Remove slots that are no longer in the floor plan layouts
     if (zoneIdsArray.length > 0) {
       // Clear location of items in slots that are being deleted
       await client.query(
         `UPDATE inventory 
-         SET location = 'UNASSIGNED', zone = 'C' 
+         SET location = 'UNASSIGNED' 
          WHERE location != 'UNASSIGNED' AND NOT (location = ANY($1::varchar[]))`,
         [zoneIdsArray]
       );
@@ -121,7 +124,7 @@ router.put('/', requireAuth, async (req, res) => {
       );
     } else {
       // If there are no zones in the layouts at all, unassign all items and clear slots
-      await client.query(`UPDATE inventory SET location = 'UNASSIGNED', zone = 'C'`);
+      await client.query(`UPDATE inventory SET location = 'UNASSIGNED'`);
       await client.query(`DELETE FROM slots`);
     }
 

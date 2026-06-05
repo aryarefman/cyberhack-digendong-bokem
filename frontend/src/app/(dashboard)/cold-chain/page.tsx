@@ -15,6 +15,8 @@ import {
   Activity,
   BarChart2,
   RefreshCw,
+  Trash2,
+  MessageSquarePlus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -90,21 +92,88 @@ export default function ColdChainPage() {
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
 
-  async function fetchTemperatures() {
+  // States for tickets list
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [deletingTicketId, setDeletingTicketId] = useState<number | null>(null);
+
+  // Note modal state
+  const [noteModalTicketId, setNoteModalTicketId] = useState<number | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+
+  async function fetchTemperatures(isInitial = false) {
     try {
-      setIsLoading(true);
+      if (isInitial) setIsLoading(true);
       const data = await api.get<{ success: boolean; temperatures: Record<string, TemperatureReading[]> }>("/cold-chain");
       if (data.success) {
         setTemperatures(data.temperatures);
         setLastRefreshed(new Date());
       }
     } catch {}
-    finally { setIsLoading(false); }
+    finally { if (isInitial) setIsLoading(false); }
+  }
+
+  async function fetchTickets(isInitial = false) {
+    try {
+      if (isInitial) setLoadingTickets(true);
+      const data = await api.get<{ success: boolean; tickets: any[] }>("/maintenance");
+      if (data.success) {
+        setTickets(data.tickets);
+      }
+    } catch (err) {
+      console.error("Error fetching tickets:", err);
+    } finally {
+      if (isInitial) setLoadingTickets(false);
+    }
+  }
+
+  async function handleDeleteTicket(ticketId: number) {
+    if (!confirm('Yakin ingin menghapus tiket ini?')) return;
+    setDeletingTicketId(ticketId);
+    try {
+      await api.delete(`/maintenance/${ticketId}`);
+      fetchTickets(false);
+    } catch (err) {
+      alert("Gagal menghapus tiket.");
+    } finally {
+      setDeletingTicketId(null);
+    }
+  }
+
+  async function handleSaveNote() {
+    if (!noteModalTicketId || !noteText.trim()) return;
+    setSavingNote(true);
+    try {
+      await api.put(`/maintenance/${noteModalTicketId}/note`, { note: noteText.trim() });
+      setNoteModalTicketId(null);
+      setNoteText('');
+      fetchTickets(false);
+    } catch (err) {
+      alert("Gagal menyimpan keterangan.");
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  async function handleToggleStatus(ticketId: number) {
+    try {
+      await api.put(`/maintenance/${ticketId}/toggle-status`);
+      fetchTickets(false);
+    } catch (err) {
+      alert("Gagal mengubah status tiket.");
+    }
   }
 
   useEffect(() => {
-    Promise.resolve().then(fetchTemperatures);
-    const interval = setInterval(fetchTemperatures, 60_000);
+    Promise.resolve().then(() => {
+      fetchTemperatures(true);
+      fetchTickets(true);
+    });
+    const interval = setInterval(() => {
+      fetchTemperatures(false);
+      fetchTickets(false);
+    }, 5_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -258,7 +327,8 @@ export default function ColdChainPage() {
         setTicketDesc("");
         setTicketSuccess(false);
         setTicketError(null);
-        fetchTemperatures();
+        fetchTemperatures(false);
+        fetchTickets(false);
       }, 2000);
     } catch {
       setTicketError("Gagal mengirim tiket. Periksa koneksi dan coba lagi.");
@@ -287,7 +357,7 @@ export default function ColdChainPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchTemperatures}
+            onClick={() => fetchTemperatures()}
             className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-stone-200 bg-white text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-all shadow-sm active:scale-95"
             title="Refresh sensor data"
           >
@@ -719,6 +789,124 @@ export default function ColdChainPage() {
         )}
       </AnimatePresence>
 
+      {/* Daftar Tiket Maintenance */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#D7E5D8] space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-neutral-800">Daftar Tiket Maintenance</h3>
+            <p className="text-xs text-stone-500 font-semibold mt-0.5">Daftar permintaan perbaikan cold storage di seluruh zona</p>
+          </div>
+          {loadingTickets && (
+            <div className="w-4 h-4 border-2 border-[#2C742F] border-t-transparent rounded-full animate-spin" />
+          )}
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border border-stone-200">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 font-bold uppercase tracking-wider text-[10px]">
+                <th className="p-3">ID</th>
+                <th className="p-3">Zona</th>
+                <th className="p-3">Deskripsi Masalah</th>
+                <th className="p-3">Prioritas</th>
+                <th className="p-3">Dibuat Oleh</th>
+                <th className="p-3">Tanggal Dibuat</th>
+                <th className="p-3">Keterangan</th>
+                <th className="p-3 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100 font-semibold text-stone-700">
+              {tickets.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-stone-400">
+                    Tidak ada tiket maintenance.
+                  </td>
+                </tr>
+              ) : (
+                tickets.map((ticket) => {
+                  let priorityBadge = "";
+                  if (ticket.priority === 'high' || (ticket.priority as any) === 'High') {
+                    priorityBadge = "bg-red-50 text-red-700 border-red-200";
+                  } else if (ticket.priority === 'medium' || (ticket.priority as any) === 'Medium') {
+                    priorityBadge = "bg-amber-50 text-amber-700 border-amber-200";
+                  } else {
+                    priorityBadge = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                  }
+
+                  const ticketId = ticket.id;
+                  const ticketZone = ticket.zone;
+                  const ticketDescText = (ticket as any).description || ticket.issue || '';
+                  const ticketNote = ticket.note || '';
+
+                  return (
+                    <tr key={ticketId} className="hover:bg-stone-50/50 transition-colors">
+                      <td className="p-3 text-stone-400 font-mono">#{ticketId}</td>
+                      <td className="p-3 font-bold text-[#2C742F]">Zona {ticketZone}</td>
+                      <td className="p-3 max-w-[180px] truncate" title={ticketDescText}>{ticketDescText}</td>
+                      <td className="p-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full border text-[10px] uppercase font-bold ${priorityBadge}`}>
+                          {ticket.priority}
+                        </span>
+                      </td>
+                      <td className="p-3 text-stone-600">{(ticket as any).created_by || (ticket as any).createdBy || 'System'}</td>
+                      <td className="p-3 text-stone-500">
+                        {new Date((ticket as any).created_at || ticket.createdAt).toLocaleDateString('id-ID', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                      <td className="p-3 max-w-[200px]">
+                        {ticketNote ? (
+                          <p className="text-[11px] text-stone-600 truncate" title={ticketNote}>{ticketNote}</p>
+                        ) : (
+                          <span className="text-[10px] text-stone-300 italic">Belum ada</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleToggleStatus(ticketId)}
+                            className={`px-2 py-1 rounded-lg border text-[10px] font-bold uppercase transition-all active:scale-95 ${
+                              ticket.status === 'resolved'
+                                ? "bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200"
+                                : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                            }`}
+                          >
+                            {ticket.status === 'resolved' ? 'Unresolve' : 'Resolve'}
+                          </button>
+                          <button
+                            onClick={() => { setNoteModalTicketId(ticketId); setNoteText(ticketNote); }}
+                            className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-all active:scale-95"
+                            title="Tambah/Edit Keterangan"
+                          >
+                            <MessageSquarePlus className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTicket(ticketId)}
+                            disabled={deletingTicketId === ticketId}
+                            className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-all active:scale-95 disabled:opacity-50"
+                            title="Hapus Tiket"
+                          >
+                            {deletingTicketId === ticketId ? (
+                              <div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Ticket Modal */}
       <AnimatePresence>
         {showTicketModal && (
@@ -808,6 +996,56 @@ export default function ColdChainPage() {
                     </button>
                   </form>
                 )}
+              </motion.div>
+            </div>
+          </Portal>
+        )}
+      </AnimatePresence>
+
+      {/* Note / Keterangan Modal */}
+      <AnimatePresence>
+        {noteModalTicketId !== null && (
+          <Portal>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white rounded-2xl p-6 w-[95vw] max-w-md border border-stone-200 shadow-2xl relative text-left"
+              >
+                <button
+                  onClick={() => { setNoteModalTicketId(null); setNoteText(''); }}
+                  className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-stone-100 text-stone-400 hover:text-stone-700 transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                <h3 className="text-lg font-bold text-[#2C742F] mb-1">Keterangan Tiket #{noteModalTicketId}</h3>
+                <p className="text-xs text-stone-500 font-semibold mb-4">Berikan informasi mengapa masalah ini bisa terjadi</p>
+
+                <textarea
+                  rows={4}
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Contoh: Kompresor overload karena pintu zona dibiarkan terbuka selama 2 jam."
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#2C742F] resize-none"
+                />
+
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={() => { setNoteModalTicketId(null); setNoteText(''); }}
+                    className="flex-1 py-2.5 rounded-full border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 font-bold text-sm transition-all"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleSaveNote}
+                    disabled={savingNote || !noteText.trim()}
+                    className="flex-1 py-2.5 rounded-full bg-[#2C742F] hover:bg-[#235a26] text-white font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {savingNote ? 'Menyimpan...' : 'Simpan Keterangan'}
+                  </button>
+                </div>
               </motion.div>
             </div>
           </Portal>

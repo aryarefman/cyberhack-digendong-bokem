@@ -447,7 +447,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.97 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute top-full left-0 mt-2 w-full bg-[#F2F7ED]/98 backdrop-blur-lg border border-stone-200/60 rounded-2xl shadow-xl z-50 overflow-hidden text-left max-h-[360px] overflow-y-auto"
+                    className="absolute top-full left-0 mt-2 w-full bg-[#F2F7ED]/95 backdrop-blur-md border border-stone-200/50 rounded-2xl shadow-xl z-50 overflow-hidden text-left max-h-[360px] overflow-y-auto"
                   >
                     {filteredPages.length > 0 && (
                       <div className="p-2">
@@ -460,7 +460,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                               onClick={() => { router.push(page.href); setShowSearchDropdown(false); setSearchQuery(''); }}
                               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/60 transition-all text-left"
                             >
-                              <div className="w-7 h-7 rounded-lg bg-emerald-100 border border-[#2C742F]/10 flex items-center justify-center shrink-0">
+                              <div className="w-7 h-7 rounded-lg bg-white border border-[#AAE970]/10 flex items-center justify-center shrink-0">
                                 <Icon className="w-3.5 h-3.5 text-[#2C742F]" />
                               </div>
                               <span className="text-xs font-semibold text-[#1C1B1F]">{page.label}</span>
@@ -471,7 +471,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     )}
 
                     {inventoryResults.length > 0 && (
-                      <div className="p-2 border-t border-stone-200/40">
+                      <div className="p-2 border-t border-stone-200/60">
                         <p className="px-3 py-1 text-[9px] font-bold text-[#79747E] uppercase tracking-wider">{t('searchInventory')}</p>
                         {inventoryResults.map(item => (
                           <button
@@ -479,7 +479,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                             onClick={() => { router.push('/inventory-master'); setShowSearchDropdown(false); setSearchQuery(''); }}
                             className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/60 transition-all text-left"
                           >
-                            <div className="w-7 h-7 rounded-lg bg-emerald-100 border border-[#2C742F]/10 flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-lg bg-white border border-[#AAE970]/10 flex items-center justify-center shrink-0">
                               <Package className="w-3.5 h-3.5 text-[#2C742F]" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -492,7 +492,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     )}
 
                     {auditResults.length > 0 && (
-                      <div className="p-2 border-t border-stone-200/40">
+                      <div className="p-2 border-t border-stone-200/60">
                         <p className="px-3 py-1 text-[9px] font-bold text-[#79747E] uppercase tracking-wider">{t('searchActivityLogs')}</p>
                         {auditResults.map((log, i) => (
                           <button
@@ -500,7 +500,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                             onClick={() => { router.push('/audit-trail'); setShowSearchDropdown(false); setSearchQuery(''); }}
                             className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/60 transition-all text-left"
                           >
-                            <div className="w-7 h-7 rounded-lg bg-stone-100 border border-stone-200/40 flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-lg bg-white border border-[#AAE970]/10 flex items-center justify-center shrink-0">
                               <ShieldCheck className="w-3.5 h-3.5 text-stone-500" />
                             </div>
                             <div className="flex-1 min-w-0">

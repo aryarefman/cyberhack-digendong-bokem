@@ -28,24 +28,28 @@ router.get('/stats', async (req, res) => {
 
     // Zone Summary
     const itemCountRes = await pool.query(`
-      SELECT zone, COUNT(*)::int AS item_count FROM inventory GROUP BY zone ORDER BY zone ASC
+      SELECT zone, COUNT(*)::int AS item_count 
+      FROM inventory 
+      WHERE location IS NOT NULL AND location != 'UNASSIGNED' 
+      GROUP BY zone
     `);
     const slotCountRes = await pool.query(`
       SELECT zone, COUNT(*)::int AS total_slots FROM slots GROUP BY zone ORDER BY zone ASC
     `);
 
-    const slotMap = {};
-    for (const row of slotCountRes.rows) {
-      slotMap[row.zone] = row.total_slots;
+    const itemMap = {};
+    for (const row of itemCountRes.rows) {
+      itemMap[row.zone] = row.item_count;
     }
 
-    const zoneSummary = itemCountRes.rows.map(row => {
-      const totalSlots = slotMap[row.zone] || 1;
+    const zoneSummary = slotCountRes.rows.map(row => {
+      const itemCount = itemMap[row.zone] || 0;
+      const totalSlots = row.total_slots || 1;
       return {
         zone: row.zone,
-        itemCount: row.item_count,
+        itemCount,
         totalSlots,
-        capacityPercent: Math.round((row.item_count / totalSlots) * 100)
+        capacityPercent: Math.min(100, Math.round((itemCount / totalSlots) * 100))
       };
     });
 
