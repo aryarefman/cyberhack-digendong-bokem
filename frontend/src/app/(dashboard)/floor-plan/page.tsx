@@ -1939,13 +1939,33 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
               className="relative w-full border border-stone-200 rounded-xl bg-white shadow-inner overflow-hidden"
               ref={canvasRef}
               style={{
-                backgroundImage: 'radial-gradient(#2C742F12 1px, transparent 1px)',
+                backgroundImage: customFloorPlan?.imageDataUrl ? 'none' : 'radial-gradient(#2C742F12 1px, transparent 1px)',
                 backgroundSize: '24px 24px',
                 minHeight: '680px'
               }}
             >
+              {/* Floor plan image as canvas background */}
+              {customFloorPlan?.imageDataUrl && (
+                <img
+                  src={customFloorPlan.imageDataUrl}
+                  alt="Floor plan background"
+                  className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none"
+                  style={{ opacity: 0.35 }}
+                />
+              )}
               {/* Overlay zones */}
               {interactiveZones.map(zone => renderInteractiveZone(zone))}
+              {/* Empty state hint */}
+              {interactiveZones.length === 0 && !customFloorPlan?.imageDataUrl && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <p className="text-xs text-stone-400 font-semibold">Upload floor plan untuk mulai mendeteksi zona</p>
+                </div>
+              )}
+              {interactiveZones.length === 0 && customFloorPlan?.imageDataUrl && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <p className="text-xs text-stone-400 font-semibold">Tidak ada zona terdeteksi — tambahkan zona secara manual</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
