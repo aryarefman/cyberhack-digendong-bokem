@@ -27,38 +27,37 @@ router.get('/stats', async (req, res) => {
     }));
 
     // Zone Summary
-    const itemCountRes = await pool.query(`
-      SELECT zone, COUNT(*)::int AS item_count 
-      FROM inventory 
-      WHERE location IS NOT NULL AND location != 'UNASSIGNED' 
-      GROUP BY zone
-    `);
-    const slotCountRes = await pool.query(`
-      SELECT zone, COUNT(*)::int AS total_slots FROM slots GROUP BY zone ORDER BY zone ASC
+    const zoneSummaryRes = await pool.query(`
+      SELECT 
+        s.zone,
+        COUNT(DISTINCT s.id)::int AS num_slots,
+        COALESCE(SUM(i.qty), 0)::float AS total_qty
+      FROM slots s
+      LEFT JOIN inventory i ON s.id = i.location
+      WHERE s.zone IS NOT NULL AND s.zone != ''
+      GROUP BY s.zone
+      ORDER BY s.zone ASC
     `);
 
-    const itemMap = {};
-    for (const row of itemCountRes.rows) {
-      itemMap[row.zone] = row.item_count;
-    }
-
-    const zoneSummary = slotCountRes.rows.map(row => {
-      const itemCount = itemMap[row.zone] || 0;
-      const totalSlots = row.total_slots || 1;
+    const zoneSummary = zoneSummaryRes.rows.map(row => {
+      const totalQty = row.total_qty || 0;
+      const numSlots = row.num_slots || 1;
+      const maxCapacity = numSlots * 500; // 500 kg/L capacity per slot
       return {
         zone: row.zone,
-        itemCount,
-        totalSlots,
-        capacityPercent: Math.min(100, Math.round((itemCount / totalSlots) * 100))
+        itemCount: totalQty,
+        totalSlots: maxCapacity,
+        capacityPercent: Math.min(100, Math.round((totalQty / maxCapacity) * 100))
       };
     });
 
     // Expiry Alerts
     const expiryRes = await pool.query(`
-      SELECT id, name, zone, (expiry - CURRENT_DATE) AS days_left
-      FROM inventory
-      WHERE status != 'Expired'
-      ORDER BY (expiry - CURRENT_DATE) ASC
+      SELECT i.id, i.name, COALESCE(s.zone, i.zone) AS zone, (i.expiry - CURRENT_DATE) AS days_left
+      FROM inventory i
+      LEFT JOIN slots s ON i.location = s.id
+      WHERE i.status != 'Expired'
+      ORDER BY (i.expiry - CURRENT_DATE) ASC
       LIMIT 5
     `);
 

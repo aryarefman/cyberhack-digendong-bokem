@@ -5,6 +5,7 @@ import { callAI } from '@/lib/gemini';
 import { detectZoneMismatch, CATEGORY_ZONE_MAP, type InteractiveZone } from '@/lib/zones';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { ZONE_TEMP_THRESHOLDS } from '@/lib/constants';
 import type { InventoryItem, Slot } from '@/types';
 
 export interface AIRecommendation {
@@ -50,14 +51,10 @@ function getMismatchReasonText(
   expiry: string
 ): string {
   const getZoneTemp = (zoneId: string) => {
-    const map: Record<string, string> = {
-      A: '20°C – 30°C (Bahan Kering)',
-      B: '15°C – 25°C (Bahan Cair)',
-      C: '18°C – 28°C (Bahan Umum)',
-      D: '-5°C – 5°C (Cold Storage)',
-      E: '15°C – 25°C (Hazard / Kimia)',
-    };
-    return map[zoneId] || 'suhu tidak sesuai';
+    const thresh = ZONE_TEMP_THRESHOLDS[zoneId];
+    if (!thresh) return 'suhu tidak sesuai';
+    const cleanLabel = thresh.label.includes(' – ') ? thresh.label.split(' – ')[1] : thresh.label;
+    return `${thresh.min}°C – ${thresh.max}°C (${cleanLabel})`;
   };
 
   const currTemp = getZoneTemp(currentZoneId);
@@ -102,14 +99,9 @@ function getMismatchReasonText(
 
 function getPlacementReasonText(itemName: string, category: string, recommendedZone: string): string {
   const getZoneName = (zoneId: string) => {
-    const map: Record<string, string> = {
-      A: 'Zona A (Bahan Kering, Suhu: 20°C s/d 30°C)',
-      B: 'Zona B (Bahan Cair, Suhu: 15°C s/d 25°C)',
-      C: 'Zona C (Bahan Umum, Suhu: 18°C s/d 28°C)',
-      D: 'Zona D (Cold Storage, Suhu: -5°C s/d 5°C)',
-      E: 'Zona E (Hazard Storage, Suhu: 15°C s/d 25°C)',
-    };
-    return map[zoneId] || `Zona ${zoneId}`;
+    const thresh = ZONE_TEMP_THRESHOLDS[zoneId];
+    if (!thresh) return `Zona ${zoneId}`;
+    return `${thresh.label} (Suhu: ${thresh.min}°C s/d ${thresh.max}°C)`;
   };
 
   const targetName = getZoneName(recommendedZone);
@@ -188,16 +180,14 @@ export default function AIRecommendationPanel({
         'C-3': 'Non-Production Machinery', 'C-4': 'Locker Room', 'C-5': 'QC & Lab',
         'C-2': 'Packaging & Shipping', 'A-3': 'Receiving', 'E-1': 'Hazard Storage',
       };
-      const ZONE_NAME_MAPPING: Record<string, string> = {
-        'A': 'Zona A (Bahan Kering, 20–30°C)',
-        'B': 'Zona B (Bahan Cair, 15–25°C)',
-        'C': 'Zona C (Bahan Umum, 18–28°C)',
-        'D': 'Zona D (Cold Storage, -5–5°C)',
-        'E': 'Zona E (Hazard Storage, 15–25°C)',
-      };
-      const ZONE_IDEAL_TEMP: Record<string, string> = {
-        A: '20–30°C', B: '15–25°C', C: '18–28°C', D: '-5–5°C', E: '15–25°C',
-      };
+      const ZONE_NAME_MAPPING: Record<string, string> = Object.entries(ZONE_TEMP_THRESHOLDS).reduce((acc, [id, thresh]) => {
+        acc[id] = `${thresh.label} (${thresh.min}–${thresh.max}°C)`;
+        return acc;
+      }, {} as Record<string, string>);
+      const ZONE_IDEAL_TEMP: Record<string, string> = Object.entries(ZONE_TEMP_THRESHOLDS).reduce((acc, [id, thresh]) => {
+        acc[id] = `${thresh.min}–${thresh.max}°C`;
+        return acc;
+      }, {} as Record<string, string>);
 
       // Helper: get real-time temp from sensor data
       const getRealTemp = (zoneId: string): string => {

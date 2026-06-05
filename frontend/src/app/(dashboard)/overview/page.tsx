@@ -477,8 +477,10 @@ export default function DashboardPage() {
 
   // Computed stats from inventory + DB
   const stats = useMemo(() => {
-    const totalSlots = dashboardStats?.zoneSummary?.reduce((sum, z) => sum + z.totalSlots, 0) || 30;
-    const occupiedSlots = inventory.filter((i) => i.location && i.location !== "UNASSIGNED").length;
+    const totalSlots = dashboardStats?.zoneSummary?.reduce((sum, z) => sum + z.totalSlots, 0) || 15000;
+    const occupiedSlots = inventory
+      .filter((i) => i.location && i.location !== "UNASSIGNED")
+      .reduce((sum, i) => sum + (Number(i.qty) || 0), 0);
     const capacity = Math.min(100, Math.round((occupiedSlots / totalSlots) * 100));
     return { capacity, totalSlots, occupiedSlots };
   }, [inventory, dashboardStats]);
@@ -659,7 +661,9 @@ export default function DashboardPage() {
               />
             </div>
             <p className="text-xs text-[#79747E] font-medium">
-              {t('emptySlotsRemaining').replace('{count}', String(stats.totalSlots - stats.occupiedSlots))}
+              {lang === 'id'
+                ? `${(stats.totalSlots - stats.occupiedSlots).toLocaleString('id-ID')} kg/L kapasitas tersedia`
+                : `${(stats.totalSlots - stats.occupiedSlots).toLocaleString('en-US')} kg/L capacity available`}
             </p>
           </div>
         </motion.div>

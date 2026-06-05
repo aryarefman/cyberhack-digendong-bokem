@@ -178,7 +178,13 @@ export default function ColdChainPage() {
   }, []);
 
   const zones: ZoneUIData[] = useMemo(() => {
-    return Object.entries(ZONE_METADATA).map(([zoneId, meta]) => {
+    return Object.keys(temperatures).sort().map((zoneId) => {
+      const meta = ZONE_METADATA[zoneId] ?? {
+        title: `Zone ${zoneId}`,
+        subtitle: `Custom Storage`,
+        min: 16,
+        max: 26,
+      };
       const readings = temperatures[zoneId] ?? [];
       const currentReading = readings[readings.length - 1];
       const midpoint = (meta.min + meta.max) / 2;
@@ -283,7 +289,7 @@ export default function ColdChainPage() {
         temp: `${currentTemp.toFixed(1)}°C`,
         tempColor,
         targetRange: `${meta.min}°C – ${meta.max}°C`,
-        humidity: ZONE_HUMIDITY[zoneId] ?? 45,
+        humidity: ZONE_HUMIDITY[zoneId] ?? (40 + (zoneId.charCodeAt(0) % 25)),
         buttonBg,
         svgPoints,
         svgColor,
@@ -946,9 +952,9 @@ export default function ColdChainPage() {
                         onChange={(e) => setTicketZoneId(e.target.value)}
                         className="w-full bg-stone-50 border border-stone-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#2C742F]"
                       >
-                        {Object.keys(ZONE_METADATA).map((id) => (
+                        {Object.keys(temperatures).sort().map((id) => (
                           <option key={id} value={id}>
-                            Zone {id} — {ZONE_METADATA[id].subtitle}
+                            Zone {id} — {ZONE_METADATA[id]?.subtitle ?? "Custom Storage"}
                           </option>
                         ))}
                       </select>

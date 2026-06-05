@@ -14,6 +14,7 @@ import {
 import { api } from '@/lib/api';
 import { callAI } from '@/lib/gemini';
 import { useLanguage } from '@/lib/i18n';
+import { ZONE_TEMP_THRESHOLDS } from '@/lib/constants';
 import {
   type InteractiveZone,
   type Material,
@@ -1058,7 +1059,7 @@ export default function FloorPlanPage() {
 
   // Calculate statistics for selected room/zone
   const selectedRoomStats = useMemo(() => {
-    if (!selectedSlot) return { qty: 0, capacityPct: 0, occupied: false, materials: [] };
+    if (!selectedSlot) return { qty: 0, capacityPct: 0, occupied: false, materials: [], maxCapacity: 500, unit: 'kg' };
     
     let materials: any[] = [];
     if ('materials' in selectedSlot && selectedSlot.materials) {
@@ -1071,15 +1072,25 @@ export default function FloorPlanPage() {
     let totalQty = 0;
     materials.forEach(m => totalQty += (parseFloat(m.qty) || 0));
 
-    const capacityPct = Math.min(100, Math.round((totalQty / 500) * 100));
+    let maxCapacity = 500;
+    if ('materials' in selectedSlot && selectedSlot.materials && selectedSlot.materials.length > 0) {
+      maxCapacity = selectedSlot.materials.reduce((sum: number, m: any) => sum + (m.maxCapacity || 500), 0);
+    } else if (materials.length > 0) {
+      maxCapacity = materials.reduce((sum: number, m: any) => sum + (m.maxCapacity || 500), 0);
+    }
+
+    const capacityPct = Math.min(100, Math.round((totalQty / maxCapacity) * 100));
     const hasCritical = materials.some(m => m.status === 'Kritis' || m.status === 'Expired');
+    const unit = materials[0]?.unit || 'kg';
 
     return {
       qty: totalQty,
+      maxCapacity,
       capacityPct,
       occupied: materials.length > 0,
       status: hasCritical ? 'Kritis' : (materials.length > 0 ? 'Aman' : 'N/A'),
-      materials
+      materials,
+      unit
     };
   }, [selectedSlot, inventoryItems]);
 
@@ -2041,13 +2052,16 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
 
       {/* Zone Legend */}
       <div className="flex flex-wrap gap-2.5">
-        {ZONES.map(z => (
-          <div key={z.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F5FBF3] border border-[#AAE970]/10 shadow-sm">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: z.color }} />
-            <span className="text-xs font-semibold text-stone-700">Zone {z.id}</span>
-            <span className="text-[10px] font-bold text-stone-500">{z.tempMin}–{z.tempMax}°C</span>
-          </div>
-        ))}
+        {ZONES.map(z => {
+          const threshold = ZONE_TEMP_THRESHOLDS[z.id] || { min: z.tempMin, max: z.tempMax };
+          return (
+            <div key={z.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F5FBF3] border border-[#AAE970]/10 shadow-sm">
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: z.color }} />
+              <span className="text-xs font-semibold text-stone-700">Zone {z.id}</span>
+              <span className="text-[10px] font-bold text-stone-500">{threshold.min}–{threshold.max}°C</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Custom Zones Info */}
@@ -2184,7 +2198,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
                     <div className="flex justify-between items-center text-xs font-semibold">
                       <span className="text-stone-500">Kapasitas Zona</span>
                       <strong className={selectedRoomStats.capacityPct > 90 ? 'text-[#EA4B48]' : 'text-stone-750'}>
-                        {selectedRoomStats.capacityPct}% ({selectedRoomStats.qty} / 500)
+                        {selectedRoomStats.capacityPct}% ({selectedRoomStats.qty} / {selectedRoomStats.maxCapacity} {selectedRoomStats.unit})
                       </strong>
                     </div>
                     <div className="w-full h-2 bg-stone-200 rounded-full overflow-hidden shadow-inner">

@@ -4,25 +4,33 @@ import pool from '../lib/db.js';
 const router = Router();
 
 const ZONE_BASES = {
-  A: { base: 24.5, min: 20, max: 28, anomalyTarget: 30.5 },
+  A: { base: 24.5, min: 20, max: 30, anomalyTarget: 32.5 },
   B: { base: 20.0, min: 15, max: 25, anomalyTarget: 27.5 },
-  C: { base: 22.0, min: 18, max: 24, anomalyTarget: 26.5 },
+  C: { base: 23.0, min: 18, max: 28, anomalyTarget: 30.5 },
   D: { base: -2.0, min: -5, max: 5, anomalyTarget: 7.2 },
   E: { base: 19.5, min: 15, max: 25, anomalyTarget: 27.5 }
 };
 
-const zoneStates = {
-  A: { anomalyActive: false, anomalyDuration: 0 },
-  B: { anomalyActive: false, anomalyDuration: 0 },
-  C: { anomalyActive: false, anomalyDuration: 0 },
-  D: { anomalyActive: false, anomalyDuration: 0 },
-  E: { anomalyActive: false, anomalyDuration: 0 }
-};
+const zoneStates = {};
+
+function getZoneConfig(zone) {
+  const z = zone.toUpperCase();
+  if (ZONE_BASES[z]) return ZONE_BASES[z];
+  // Fallback config for any custom zone (F, G, H...)
+  return { base: 21.0, min: 16, max: 26, anomalyTarget: 28.5 };
+}
 
 // GET /api/cold-chain
 router.get('/', async (req, res) => {
   try {
-    // 1. Get the latest reading to check elapsed time
+    // 1. Fetch active zones from slots table (which is synced with floor plan)
+    const zonesRes = await pool.query("SELECT DISTINCT zone FROM slots WHERE zone IS NOT NULL AND zone != ''");
+    let activeZones = zonesRes.rows.map(r => r.zone.toUpperCase()).filter(Boolean);
+    if (activeZones.length === 0) {
+      activeZones = ['A', 'B', 'C', 'D', 'E'];
+    }
+
+    // 2. Get the latest reading to check elapsed time
     const lastReadingsRes = await pool.query(
       'SELECT DISTINCT ON (zone) zone, temperature, timestamp FROM temperature_readings ORDER BY zone, timestamp DESC'
     );
@@ -41,8 +49,13 @@ router.get('/', async (req, res) => {
 
     // Simulate new reading if more than 5 seconds have passed or no readings exist
     if (timeDiff >= 5000 || lastReadingsRes.rowCount === 0) {
-      for (const zone of ['A', 'B', 'C', 'D', 'E']) {
-        const config = ZONE_BASES[zone];
+      for (const zone of activeZones) {
+        const config = getZoneConfig(zone);
+        
+        // Initialize state for new zones dynamically
+        if (!zoneStates[zone]) {
+          zoneStates[zone] = { anomalyActive: false, anomalyDuration: 0 };
+        }
         let state = zoneStates[zone];
 
         // Anomaly duration and state management
@@ -95,20 +108,25 @@ router.get('/', async (req, res) => {
       }
     }
 
-    // 2. Fetch the latest 30 readings for each zone to return to frontend
+    // 3. Fetch all readings to return to frontend
     const result = await pool.query('SELECT * FROM temperature_readings ORDER BY timestamp ASC');
 
-    const grouped = { A: [], B: [], C: [], D: [], E: [] };
+    const grouped = {};
+    activeZones.forEach(z => {
+      grouped[z] = [];
+    });
 
     result.rows.forEach(row => {
-      if (grouped[row.zone]) {
-        grouped[row.zone].push({
-          zone: row.zone,
-          hour: row.hour,
-          temperature: parseFloat(row.temperature),
-          timestamp: row.timestamp.toISOString()
-        });
+      const z = row.zone;
+      if (!grouped[z]) {
+        grouped[z] = [];
       }
+      grouped[z].push({
+        zone: z,
+        hour: row.hour,
+        temperature: parseFloat(row.temperature),
+        timestamp: row.timestamp.toISOString()
+      });
     });
 
     return res.json({ success: true, temperatures: grouped });
