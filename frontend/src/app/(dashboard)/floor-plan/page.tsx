@@ -1521,7 +1521,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
         formData.append('pdf', uploadPdfFile);
         
         try {
-          const data = await api.postForm<{ success: boolean; zones: any[] }>('/floor-plan-upload', formData);
+          const data = await api.postForm<{ success: boolean; zones: any[]; error?: string }>('/floor-plan-upload', formData);
           if (data.success && data.zones) {
             extractedZones = data.zones;
           } else if (data.error) {
@@ -1564,7 +1564,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
         }
         
         try {
-          const data = await api.postForm<{ success: boolean; zones: any[] }>('/floor-plan-upload', formData);
+          const data = await api.postForm<{ success: boolean; zones: any[]; error?: string }>('/floor-plan-upload', formData);
           if (data.success && data.zones) {
             extractedZones = data.zones.map((z: any, idx: number) => ({
               id: z.id || `Z-${idx + 1}`,
@@ -1613,7 +1613,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
         }
       }
 
-      let finalZones = [];
+      let finalZones: any[] = [];
 
       if (extractedZones.length > 0) {
         // Use Gemini-detected zones as the primary source of layout positions
