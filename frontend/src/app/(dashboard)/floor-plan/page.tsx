@@ -2010,217 +2010,249 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
 
       {/* Floating Popup Slot/Room Details Card Overlay */}
       <AnimatePresence>
-        {selectedSlotPopup && selectedSlot && (
-          <Portal>
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={closePopup}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              transition={{ duration: 0.2 }}
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-              className="relative bg-white rounded-2xl shadow-2xl w-[95vw] max-w-md overflow-hidden flex flex-col text-left border border-[#AAE970]/10"
-            >
-              {/* Header */}
-              <div className="bg-[#F5FBF3] p-5 border-b border-[#AAE970]/10 flex justify-between items-start relative">
-                <button onClick={closePopup} className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-stone-250 bg-white/60 text-stone-500 hover:text-stone-800 shadow-sm transition-all focus:outline-none">
-                  <X className="w-4 h-4" />
-                </button>
-                <div className="flex gap-4">
-                  <div className="w-11 h-11 bg-emerald-50 border border-[#2C742F]/10 rounded-xl flex items-center justify-center text-[#2C742F] shrink-0 shadow-sm">
-                    {selectedSlot.id === 'D-1' ? (
-                      <Snowflake className="w-6 h-6" />
-                    ) : selectedSlot.id === 'E-1' ? (
-                      <AlertTriangle className="w-6 h-6 text-red-600" />
-                    ) : (
-                      <Droplet className="w-6 h-6" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-green-950 text-base leading-tight mt-0.5">{selectedSlot.name}</h3>
-                    <p className="text-[10px] font-extrabold text-[#79747E] uppercase tracking-wider mt-1.5">
-                      Zone {selectedSlot.zone} • {selectedSlot.isCustom ? 'Custom Zone' : 'Default Room'}
-                    </p>
-                  </div>
-                </div>
-              </div>
+        {selectedSlotPopup && selectedSlot && (() => {
+          const slotColor = (() => {
+            const s = selectedSlot as any;
+            if (s.color) return s.color;
+            switch (s.theme) {
+              case 'blue': return '#3b82f6';
+              case 'purple': return '#8b5cf6';
+              case 'green': return '#10b981';
+              case 'cyan': return '#06b6d4';
+              case 'hazard': return '#ef4444';
+              case 'warm': return '#f97316';
+              case 'neutral': return '#78716c';
+              default: return '#10b981';
+            }
+          })();
 
-              {/* Layout Modification Actions */}
-              {canEdit() && (
-                <div className="px-5 pt-4 flex gap-2 w-full">
-                  <button
-                    onClick={() => { handleEditZoneClick(selectedSlot as InteractiveZone); closePopup(); }}
-                    className="flex-1 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold hover:bg-blue-100 transition-colors shadow-sm"
-                  >
-                    Edit Zone Info
+          return (
+            <Portal>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={closePopup}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ duration: 0.2 }}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                style={{ borderTop: `6px solid ${slotColor}` }}
+                className="relative bg-white rounded-2xl shadow-2xl w-[95vw] max-w-md overflow-hidden flex flex-col text-left border border-stone-100"
+              >
+                {/* Header */}
+                <div className="bg-stone-50/50 p-5 border-b border-stone-100 flex justify-between items-start relative">
+                  <button onClick={closePopup} className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-stone-200 bg-white/60 text-stone-500 hover:text-stone-800 shadow-sm transition-all focus:outline-none">
+                    <X className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => {
-                      if (selectedSlot.isCustom) {
-                        deleteZone(selectedSlot.id);
-                        closePopup();
-                      } else {
-                        handleDeleteDefaultZone(selectedSlot.id);
-                      }
-                    }}
-                    className="flex-1 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-xs font-bold hover:bg-red-100 transition-colors shadow-sm flex items-center justify-center gap-1.5"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Hapus Zona
-                  </button>
-                </div>
-              )}
-
-              {/* Details Body */}
-              <div className="p-5 space-y-4 overflow-y-auto max-h-[360px]">
-                {/* Capacity utilization bar */}
-                <div className="bg-stone-50 rounded-xl p-3.5 border border-stone-150 space-y-2">
-                  <div className="flex justify-between items-center text-xs font-semibold">
-                    <span className="text-stone-500">Kapasitas Zona</span>
-                    <strong className={selectedRoomStats.capacityPct > 90 ? 'text-[#EA4B48]' : 'text-green-950'}>
-                      {selectedRoomStats.capacityPct}% ({selectedRoomStats.qty} / 500)
-                    </strong>
-                  </div>
-                  <div className="w-full h-2 bg-stone-200 rounded-full overflow-hidden shadow-inner">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        selectedRoomStats.capacityPct > 90 ? 'bg-[#EA4B48]' : 'bg-[#2C742F]'
-                      }`}
-                      style={{ width: `${selectedRoomStats.capacityPct}%` }}
-                    />
+                  <div className="flex gap-4">
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm border"
+                         style={{ 
+                           backgroundColor: `${slotColor}12`, 
+                           borderColor: `${slotColor}33`, 
+                           color: slotColor 
+                         }}>
+                      {selectedSlot.id === 'D-1' ? (
+                        <Snowflake className="w-6 h-6" />
+                      ) : selectedSlot.id === 'E-1' ? (
+                        <AlertTriangle className="w-6 h-6 text-red-600" />
+                      ) : (
+                        <Droplet className="w-6 h-6" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-base leading-tight mt-0.5" style={{ color: slotColor }}>{selectedSlot.name}</h3>
+                      <p className="text-[10px] font-extrabold text-[#79747E] uppercase tracking-wider mt-1.5">
+                        Zone {selectedSlot.zone} • {selectedSlot.isCustom ? 'Custom Zone' : 'Default Room'}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Assigned Items */}
-                <div className="space-y-2 text-left">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-stone-700 uppercase tracking-wider">Item Terdaftar ({selectedRoomStats.materials.length})</h4>
-                    {!showAddForm && canEdit() && (
-                      <button onClick={() => setShowAddForm(true)}
-                        className="flex items-center gap-1 px-3 py-1 rounded-full border border-stone-200 bg-white text-[10px] font-bold text-[#2C742F] hover:bg-stone-50 shadow-sm transition-all active:scale-95">
-                        <Plus className="w-3.5 h-3.5" /> Add Material
-                      </button>
-                    )}
+                {/* Layout Modification Actions */}
+                {canEdit() && (
+                  <div className="px-5 pt-4 flex gap-2 w-full">
+                    <button
+                      onClick={() => { handleEditZoneClick(selectedSlot as InteractiveZone); closePopup(); }}
+                      className="flex-1 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold hover:bg-blue-100 transition-colors shadow-sm"
+                    >
+                      Edit Zone Info
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (selectedSlot.isCustom) {
+                          deleteZone(selectedSlot.id);
+                          closePopup();
+                        } else {
+                          handleDeleteDefaultZone(selectedSlot.id);
+                        }
+                      }}
+                      className="flex-1 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-xs font-bold hover:bg-red-100 transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Hapus Zona
+                    </button>
+                  </div>
+                )}
+
+                {/* Details Body */}
+                <div className="p-5 space-y-4 overflow-y-auto max-h-[360px]">
+                  {/* Capacity utilization bar */}
+                  <div className="bg-stone-50 rounded-xl p-3.5 border border-stone-150 space-y-2">
+                    <div className="flex justify-between items-center text-xs font-semibold">
+                      <span className="text-stone-500">Kapasitas Zona</span>
+                      <strong className={selectedRoomStats.capacityPct > 90 ? 'text-[#EA4B48]' : 'text-stone-750'}>
+                        {selectedRoomStats.capacityPct}% ({selectedRoomStats.qty} / 500)
+                      </strong>
+                    </div>
+                    <div className="w-full h-2 bg-stone-200 rounded-full overflow-hidden shadow-inner">
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${selectedRoomStats.capacityPct}%`,
+                          backgroundColor: selectedRoomStats.capacityPct > 90 ? '#EA4B48' : slotColor
+                        }}
+                      />
+                    </div>
                   </div>
 
-                  {!showAddForm ? (
-                    selectedRoomStats.materials.length > 0 ? (
-                      <div className="divide-y divide-stone-100 pr-1">
-                        {selectedRoomStats.materials.map(m => (
-                          <div key={m.id} className="flex justify-between items-center py-2.5">
-                            <div>
-                              <p className="text-xs font-bold text-stone-800">{m.name}</p>
-                              <p className="text-[10px] font-semibold text-stone-500 mt-0.5">Lot ID: {m.id} | {m.qty} {m.unit}</p>
+                  {/* Assigned Items */}
+                  <div className="space-y-2 text-left">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-stone-700 uppercase tracking-wider">Item Terdaftar ({selectedRoomStats.materials.length})</h4>
+                      {!showAddForm && canEdit() && (
+                        <button onClick={() => setShowAddForm(true)}
+                          className="flex items-center gap-1 px-3 py-1 rounded-full border border-stone-200 bg-white text-[10px] font-bold shadow-sm transition-all active:scale-95"
+                          style={{ color: slotColor }}>
+                          <Plus className="w-3.5 h-3.5" /> Add Material
+                        </button>
+                      )}
+                    </div>
+
+                    {!showAddForm ? (
+                      selectedRoomStats.materials.length > 0 ? (
+                        <div className="divide-y divide-stone-100 pr-1">
+                          {selectedRoomStats.materials.map(m => (
+                            <div key={m.id} className="flex justify-between items-center py-2.5">
+                              <div>
+                                <p className="text-xs font-bold text-stone-800">{m.name}</p>
+                                <p className="text-[10px] font-semibold text-stone-500 mt-0.5">Lot ID: {m.id} | {m.qty} {m.unit}</p>
+                              </div>
+                              {canEdit() && (
+                                <button onClick={() => handleDeleteItem(m.id, m.name)}
+                                  className="p-1 rounded-lg text-stone-400 hover:text-[#EA4B48] hover:bg-red-50 transition-all">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
-                            {canEdit() && (
-                              <button onClick={() => handleDeleteItem(m.id, m.name)}
-                                className="p-1 rounded-lg text-stone-400 hover:text-[#EA4B48] hover:bg-red-50 transition-all">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-xs text-stone-400 font-semibold italic border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
+                          Kosong
+                        </div>
+                      )
                     ) : (
-                      <div className="text-center py-8 text-xs text-stone-400 font-semibold italic border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
-                        Kosong
-                      </div>
-                    )
-                  ) : (
-                    /* Search and Add Form */
-                    <form onSubmit={handleSaveNewItem} className="space-y-3 p-3 bg-stone-50 rounded-xl border border-stone-200 animate-fadeIn">
-                      <div>
-                        <label className="text-[9px] font-bold text-stone-500 uppercase block mb-1">Nama Material / Lot ID</label>
-                        <input
-                          type="text"
-                          placeholder="Cari material..."
-                          value={searchLotQuery}
-                          onChange={e => { setSearchLotQuery(e.target.value); setAddData({ ...addData, selectedLotId: '' }); }}
-                          className="w-full px-3 py-2 border border-stone-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-[#2C742F]"
-                        />
+                      /* Search and Add Form */
+                      <form onSubmit={handleSaveNewItem} className="space-y-3 p-3 bg-stone-50 rounded-xl border border-stone-200 animate-fadeIn">
+                        <div>
+                          <label className="text-[9px] font-bold text-stone-500 uppercase block mb-1">Nama Material / Lot ID</label>
+                          <input
+                            type="text"
+                            placeholder="Cari material..."
+                            value={searchLotQuery}
+                            onChange={e => { setSearchLotQuery(e.target.value); setAddData({ ...addData, selectedLotId: '' }); }}
+                            className="w-full px-3 py-2 border border-stone-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-1"
+                            style={{ '--tw-ring-color': slotColor } as any}
+                          />
 
-                        {searchLotQuery && !addData.selectedLotId && (() => {
-                          const q = searchLotQuery.toLowerCase();
-                          const results = getAvailableInventory().filter(m =>
-                            m.name.toLowerCase().includes(q) ||
-                            String(m.id).toLowerCase().includes(q) ||
-                            (m.category || '').toLowerCase().includes(q)
-                          );
-                          return (
-                            <div className="mt-1.5 max-h-40 overflow-y-auto bg-white border border-stone-200 rounded-lg shadow-lg divide-y divide-stone-100">
-                              {results.length === 0 ? (
-                                <div className="p-3 text-center text-[10px] font-semibold text-stone-400">
-                                  Tidak ada material ditemukan
-                                </div>
-                              ) : results.map(m => {
-                                const currentLoc = (m as any).location;
-                                const isElsewhere = currentLoc && currentLoc !== 'UNASSIGNED' && currentLoc !== selectedSlotId;
+                          {searchLotQuery && !addData.selectedLotId && (() => {
+                            const q = searchLotQuery.toLowerCase();
+                            const results = getAvailableInventory().filter(m =>
+                              m.name.toLowerCase().includes(q) ||
+                              String(m.id).toLowerCase().includes(q) ||
+                              (m.category || '').toLowerCase().includes(q)
+                            );
+                            return (
+                              <div className="mt-1.5 max-h-40 overflow-y-auto bg-white border border-stone-200 rounded-lg shadow-lg divide-y divide-stone-100">
+                                {results.length === 0 ? (
+                                  <div className="p-3 text-center text-[10px] font-semibold text-stone-400">
+                                    Tidak ada material ditemukan
+                                  </div>
+                                ) : results.map(m => {
+                                  const currentLoc = (m as any).location;
+                                  const isElsewhere = currentLoc && currentLoc !== 'UNASSIGNED' && currentLoc !== selectedSlotId;
+                                  return (
+                                    <div
+                                      key={m.id}
+                                      onClick={() => {
+                                        setSearchLotQuery(`${m.name} (${m.id})`);
+                                        setAddData({ ...addData, selectedLotId: String(m.id) });
+                                        setAiSuggestion(getPlacementSuggestion(m.category));
+                                      }}
+                                      className="p-2.5 hover:bg-stone-50 cursor-pointer text-left transition-colors"
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs font-bold text-stone-800">{m.name}</span>
+                                        {isElsewhere && (
+                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 shrink-0">
+                                            {currentLoc}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[10px] font-semibold text-stone-400 mt-0.5">
+                                        {m.id} · {m.category} · {m.qty} {m.unit}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {aiSuggestion && addData.selectedLotId && (
+                          <>
+                            <div className="flex gap-2 p-2 rounded-lg text-[10px] font-semibold border"
+                                 style={{ 
+                                   backgroundColor: `${slotColor}12`, 
+                                   borderColor: `${slotColor}22`, 
+                                   color: slotColor 
+                                 }}>
+                              <Bot className="w-4.5 h-4.5 shrink-0 animate-bounce" style={{ color: slotColor }} />
+                              <span>AI Recommendation: {aiSuggestion}</span>
+                            </div>
+                            {/* ZoneMismatchWarning: show when item category doesn't match current zone */}
+                            {(() => {
+                              const selectedItem = inventoryItems.find(i => i.id === addData.selectedLotId);
+                              const currentZone = selectedSlot?.zone || getSelectedSlotZone();
+                              if (selectedItem && currentZone && detectZoneMismatch(selectedItem.category, currentZone)) {
+                                const recommendedZone = CATEGORY_ZONE_MAP[selectedItem.category];
                                 return (
-                                  <div
-                                    key={m.id}
-                                    onClick={() => {
-                                      setSearchLotQuery(`${m.name} (${m.id})`);
-                                      setAddData({ ...addData, selectedLotId: String(m.id) });
-                                      setAiSuggestion(getPlacementSuggestion(m.category));
-                                    }}
-                                    className="p-2.5 hover:bg-[#F5FBF3] cursor-pointer text-left transition-colors"
-                                  >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="text-xs font-bold text-stone-800">{m.name}</span>
-                                      {isElsewhere && (
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 shrink-0">
-                                          {currentLoc}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-[10px] font-semibold text-stone-400 mt-0.5">
-                                      {m.id} · {m.category} · {m.qty} {m.unit}
-                                    </div>
+                                  <div className="flex gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[10px] font-semibold text-amber-700">
+                                    <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                                    <span>⚠️ Zone Mismatch: &quot;{selectedItem.name}&quot; ({selectedItem.category}) sebaiknya di Zona {recommendedZone}, bukan Zona {currentZone}.</span>
                                   </div>
                                 );
-                              })}
-                            </div>
-                          );
-                        })()}
-                      </div>
+                              }
+                              return null;
+                            })()}
+                          </>
+                        )}
 
-                      {aiSuggestion && addData.selectedLotId && (
-                        <>
-                          <div className="flex gap-2 p-2 bg-[#F5FBF3] border border-[#AAE970]/10 rounded-lg text-[10px] font-semibold text-[#2C742F]">
-                            <Bot className="w-4.5 h-4.5 shrink-0 text-[#2C742F] animate-bounce" />
-                            <span>AI Recommendation: {aiSuggestion}</span>
-                          </div>
-                          {/* ZoneMismatchWarning: show when item category doesn't match current zone */}
-                          {(() => {
-                            const selectedItem = inventoryItems.find(i => i.id === addData.selectedLotId);
-                            const currentZone = selectedSlot?.zone || getSelectedSlotZone();
-                            if (selectedItem && currentZone && detectZoneMismatch(selectedItem.category, currentZone)) {
-                              const recommendedZone = CATEGORY_ZONE_MAP[selectedItem.category];
-                              return (
-                                <div className="flex gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[10px] font-semibold text-amber-700">
-                                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
-                                  <span>⚠️ Zone Mismatch: &quot;{selectedItem.name}&quot; ({selectedItem.category}) sebaiknya di Zona {recommendedZone}, bukan Zona {currentZone}.</span>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </>
-                      )}
-
-                      <div className="flex gap-2 pt-1.5">
-                        <button type="submit"
-                          className="flex-1 py-2 bg-[#2C742F] hover:bg-[#366306] text-white rounded-full text-xs font-bold shadow-sm transition-all">Simpan</button>
-                        <button type="button" onClick={() => { setShowAddForm(false); setAiSuggestion(null); }}
-                          className="flex-1 py-2 bg-white border border-stone-200 hover:bg-stone-50 text-stone-700 rounded-full text-xs font-semibold transition-all">Batal</button>
-                      </div>
-                    </form>
-                  )}
+                        <div className="flex gap-2 pt-1.5">
+                          <button type="submit"
+                            style={{ backgroundColor: slotColor }}
+                            className="flex-1 py-2 text-white rounded-full text-xs font-bold shadow-sm transition-all hover:brightness-95">Simpan</button>
+                          <button type="button" onClick={() => { setShowAddForm(false); setAiSuggestion(null); }}
+                            className="flex-1 py-2 bg-white border border-stone-200 hover:bg-stone-50 text-stone-700 rounded-full text-xs font-semibold transition-all">Batal</button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          </div>
-          </Portal>
-        )}
+              </motion.div>
+            </div>
+            </Portal>
+          );
+        })()}
       </AnimatePresence>
 
       {/* PDF + Floor Plan Image Upload Modal Panel */}

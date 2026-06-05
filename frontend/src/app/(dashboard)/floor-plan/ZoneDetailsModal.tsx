@@ -126,6 +126,7 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2 }}
+        style={{ borderTop: `6px solid ${formData.color || '#10b981'}` }}
         className="relative bg-white rounded-2xl shadow-2xl w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-5"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
@@ -285,13 +286,16 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
             <div className="bg-stone-50 rounded-xl p-3 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-[#79747E]">Capacity Utilization</span>
-                <span className={`font-bold ${capacityPct > 90 ? 'text-[#EA4B48]' : 'text-[#2C742F]'}`}>
+                <span className="font-bold" style={{ color: capacityPct > 90 ? '#EA4B48' : (formData.color || '#10b981') }}>
                   {capacityPct}% ({totalCurrentStock} / {totalMaxCapacity})
                 </span>
               </div>
               <div className="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all ${capacityPct > 90 ? 'bg-[#EA4B48]' : 'bg-[#2C742F]'}`}
-                  style={{ width: `${capacityPct}%` }} />
+                <div className="h-full rounded-full transition-all"
+                  style={{ 
+                    width: `${capacityPct}%`, 
+                    backgroundColor: capacityPct > 90 ? '#EA4B48' : (formData.color || '#10b981') 
+                  }} />
               </div>
               {capacityPct > 90 && (
                 <div className="flex items-center gap-1.5 text-xs text-[#EA4B48] font-semibold">
@@ -320,7 +324,8 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
                         </div>
                         <button type="button"
                           onClick={() => { onAddMaterial?.(m); setIsSearchingMaterial(false); setSearchQuery(''); }}
-                          className="px-2.5 py-1 rounded-full bg-[#2C742F] text-white text-xs font-bold hover:bg-[#366306] transition-all">
+                          className="px-2.5 py-1 rounded-full text-white text-xs font-bold transition-all hover:brightness-95"
+                          style={{ backgroundColor: formData.color || '#10b981' }}>
                           Add
                         </button>
                       </div>
@@ -367,7 +372,8 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
               Cancel
             </button>
             <button type="submit"
-              className="px-4 py-2.5 rounded-full bg-[#2C742F] hover:bg-[#366306] text-white text-sm font-bold transition-all">
+              className="px-4 py-2.5 rounded-full text-white text-sm font-bold transition-all hover:brightness-95"
+              style={{ backgroundColor: formData.color || '#2C742F' }}>
               Save Zone
             </button>
           </div>
