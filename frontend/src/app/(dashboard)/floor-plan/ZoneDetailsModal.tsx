@@ -39,7 +39,7 @@ export default function ZoneDetailsModal({ zone, onSave, onClose, onAddMaterial,
       .catch(() => {});
   }, []);
 
-  const totalMaxCapacity = existingMaterials.reduce((s, m) => s + (m.maxCapacity ?? 500), 0);
+  const totalMaxCapacity = existingMaterials.reduce((s, m) => s + (m.maxCapacity ?? 500), 0) || 500;
   const totalCurrentStock = existingMaterials.reduce((s, m) => s + (m.qty ?? 0), 0);
   const capacityPct = totalMaxCapacity > 0 ? Math.min(100, Math.round((totalCurrentStock / totalMaxCapacity) * 100)) : 0;
 

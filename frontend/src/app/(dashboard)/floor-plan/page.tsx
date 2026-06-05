@@ -145,19 +145,19 @@ export default function FloorPlanPage() {
 
   const downloadCSVTemplate = () => {
     const csvContent = 
-      'id,name,theme,color,hasTempSensor,tempApiUrl,hasHumidSensor,humidApiUrl,x,y,width,height,materials\n' +
-      'A-1,LOADING DOCK,blue,,true,http://localhost:4000/api/cold-chain,false,,2,2,90,14,INV-001\n' +
-      'A-2,Equipment Set Up,blue,,false,,false,,2,18,22,46,\n' +
-      'B-1,Tray Setting 1,purple,,false,,false,,26,18,22,14,INV-003\n' +
-      'B-2,Tray Setting 2,purple,,false,,false,,49,18,22,14,\n' +
-      'D-1,Cold Storage Facility,cyan,#06B6D4,true,http://localhost:4000/api/cold-chain,true,http://localhost:4000/api/cold-chain,74,18,24,46,INV-007;INV-008\n' +
-      'C-1,Hot Extraction Room,warm,,false,,false,,26,34,45,30,INV-005\n' +
-      'C-3,Non-Production Machinery,green,,false,,false,,2,66,22,14,\n' +
-      'C-4,Locker Room,green,,false,,false,,26,66,28,14,\n' +
-      'C-5,QC & Lab Room,green,,false,,false,,56,66,15,14,\n' +
-      'C-2,Packaging & Shipping,green,,false,,false,,74,66,24,30,\n' +
-      'A-3,Receiving Area,blue,,false,,false,,2,82,22,14,\n' +
-      'E-1,Hazardous Material Storage,hazard,#EF4444,true,http://localhost:4000/api/cold-chain,false,,26,82,45,14,INV-006';
+      'id,name,theme,color,hasTempSensor,tempApiUrl,hasHumidSensor,humidApiUrl,materials\n' +
+      'A-1,LOADING DOCK,blue,,true,http://localhost:4000/api/cold-chain,false,,INV-001\n' +
+      'A-2,Equipment Set Up,blue,,false,,false,,\n' +
+      'B-1,Tray Setting 1,purple,,false,,false,,INV-003\n' +
+      'B-2,Tray Setting 2,purple,,false,,false,,\n' +
+      'D-1,Cold Storage Facility,cyan,#06B6D4,true,http://localhost:4000/api/cold-chain,true,http://localhost:4000/api/cold-chain,INV-007;INV-008\n' +
+      'C-1,Hot Extraction Room,warm,,false,,false,,INV-005\n' +
+      'C-3,Non-Production Machinery,green,,false,,false,,\n' +
+      'C-4,Locker Room,green,,false,,false,,\n' +
+      'C-5,QC & Lab Room,green,,false,,false,,\n' +
+      'C-2,Packaging & Shipping,green,,false,,false,,\n' +
+      'A-3,Receiving Area,blue,,false,,false,,\n' +
+      'E-1,Hazardous Material Storage,hazard,#EF4444,true,http://localhost:4000/api/cold-chain,false,,INV-006';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -657,12 +657,25 @@ export default function FloorPlanPage() {
       updatedZones.push(newZoneEntry);
     }
 
-    updateActiveFloorZones(updatedZones);
-
     const oldZone = interactiveZones.find(z => z.id === zoneData.id);
     const oldMaterials = oldZone?.materials || [];
     const newMaterialIds = new Set(zoneMaterials.map(m => m.id));
     const removedMaterials = oldMaterials.filter(m => !newMaterialIds.has(m.id));
+
+    // Update local inventoryItems state immediately to prevent the useEffect from reverting the changes
+    setInventoryItems(prevItems =>
+      prevItems.map(item => {
+        if (newMaterialIds.has(item.id)) {
+          return { ...item, location: zoneData.id };
+        }
+        if (oldMaterials.some(om => om.id === item.id) && !newMaterialIds.has(item.id)) {
+          return { ...item, location: 'UNASSIGNED' };
+        }
+        return item;
+      })
+    );
+
+    updateActiveFloorZones(updatedZones);
 
     try {
       const promises = [];
@@ -1179,6 +1192,13 @@ export default function FloorPlanPage() {
           user: { name: user?.name || 'Admin', role: user?.role || 'Admin' }
         });
 
+        // Update local inventoryItems state immediately to prevent the useEffect from reverting the changes
+        setInventoryItems(prevItems =>
+          prevItems.map(item =>
+            String(item.id) === String(invItem.id) ? { ...item, location: selectedSlotId } : item
+          )
+        );
+
         const updated = interactiveZones.map(z => {
           if (z.id === selectedSlotId) {
             const currentMaterials = z.materials ?? [];
@@ -1234,6 +1254,13 @@ export default function FloorPlanPage() {
             if (selectedSlot?.isCustom) {
               const invItem = inventoryItems.find(i => i.id === itemId);
               if (invItem) {
+                // Update local inventoryItems state immediately to prevent the useEffect from reverting the changes
+                setInventoryItems(prevItems =>
+                  prevItems.map(item =>
+                    String(item.id) === String(invItem.id) ? { ...item, location: 'UNASSIGNED' } : item
+                  )
+                );
+
                 await api.put('/inventory', {
                   id: invItem.id, name: invItem.name, category: invItem.category,
                   qty: invItem.qty, unit: invItem.unit, location: 'UNASSIGNED', zone: 'C',
@@ -1550,30 +1577,6 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
               iconType: ['snowflake', 'flame', 'door', 'wash', 'machinery', 'none'].includes(z.iconType) ? z.iconType : 'none',
             }));
 
-            // Merge CSV details into Gemini-detected zones if CSV was uploaded
-            if (csvZones.length > 0) {
-              extractedZones = extractedZones.map(ez => {
-                const match = csvZones.find(cz => 
-                  String(cz.id).toLowerCase() === String(ez.id).toLowerCase() ||
-                  String(cz.name).toLowerCase() === String(ez.name).toLowerCase()
-                );
-                if (match) {
-                  return {
-                    ...ez,
-                    name: match.name || ez.name,
-                    theme: match.theme || ez.theme,
-                    color: match.color || ez.color,
-                    iconType: match.iconType || ez.iconType || 'none',
-                    hasTempSensor: match.hasTempSensor,
-                    tempApiUrl: match.tempApiUrl,
-                    hasHumidSensor: match.hasHumidSensor,
-                    humidApiUrl: match.humidApiUrl,
-                    materials: match.materials
-                  };
-                }
-                return ez;
-              });
-            }
           } else if (data.error) {
             throw new Error(data.error);
           }
@@ -1581,44 +1584,112 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
           console.error('Backend floor plan zone detection error:', err);
           if (handleUploadError(err)) return;
 
-          // Otherwise fall back to upload-only
-          setUploadError('Layanan AI sedang tidak tersedia. Floor plan akan disimpan dalam mode upload-only tanpa deteksi zona otomatis. Anda dapat menambahkan zona secara manual setelah upload.');
-          
-          const planData: CustomFloorPlan = {
-            imageDataUrl,
-            fileName: uploadImageFile.name,
-            uploadedAt: new Date().toISOString(),
-            zones: []
-          };
-          setCustomFloorPlan(planData);
-          setInteractiveZones([]);
-          setFloors(prevFloors => {
-            const updated = prevFloors.map(f => f.id === activeFloorId ? { ...f, customFloorPlan: planData, interactiveZones: [] } : f);
-            localStorage.setItem('aromasys_floors', JSON.stringify(updated));
-            syncZonesToDBImmediate(updated);
-            return updated;
-          });
-          setShowUploadPanel(false);
-          setUploadImageFile(null);
-          setUploadImagePreview(null);
-          setUploadPdfFile(null);
-          setIsUploading(false);
-          setToast('Floor plan uploaded (mode upload-only — tambahkan zona secara manual).');
-          return;
+          if (csvZones.length === 0) {
+            // Otherwise fall back to upload-only
+            setUploadError('Layanan AI sedang tidak tersedia. Floor plan akan disimpan dalam mode upload-only tanpa deteksi zona otomatis. Anda dapat menambahkan zona secara manual setelah upload.');
+            
+            const planData: CustomFloorPlan = {
+              imageDataUrl,
+              fileName: uploadImageFile.name,
+              uploadedAt: new Date().toISOString(),
+              zones: []
+            };
+            setCustomFloorPlan(planData);
+            setInteractiveZones([]);
+            setFloors(prevFloors => {
+              const updated = prevFloors.map(f => f.id === activeFloorId ? { ...f, customFloorPlan: planData, interactiveZones: [] } : f);
+              localStorage.setItem('aromasys_floors', JSON.stringify(updated));
+              syncZonesToDBImmediate(updated);
+              return updated;
+            });
+            setShowUploadPanel(false);
+            setUploadImageFile(null);
+            setUploadImagePreview(null);
+            setUploadPdfFile(null);
+            setIsUploading(false);
+            setToast('Floor plan uploaded (mode upload-only — tambahkan zona secara manual).');
+            return;
+          } else {
+            setUploadError('Layanan AI sedang tidak tersedia. Menggunakan layout dari CSV template.');
+          }
         }
+      }
+
+      let finalZones = [];
+
+      if (csvZones.length > 0) {
+        // Use CSV zones as the primary source, merging position from Gemini-detected zones where possible
+        finalZones = csvZones.map(cz => {
+          const match = extractedZones.find(ez =>
+            String(ez.id).toLowerCase() === String(cz.id).toLowerCase() ||
+            String(ez.name).toLowerCase() === String(cz.name).toLowerCase()
+          );
+
+          let position = { x: 40, y: 40, width: 20, height: 20 };
+          if (match && match.position) {
+            position = match.position;
+          } else {
+            const defaultRoom = ROOMS.find(r => r.id === cz.id);
+            if (defaultRoom) {
+              const { colStart, colEnd, rowStart, rowEnd } = parseGridColumnAndRow(defaultRoom.gridColumn, defaultRoom.gridRow);
+              const gap = 0.8;
+              const x = (colStart / 12) * 100 + gap / 2;
+              const width = ((colEnd - colStart) / 12) * 100 - gap;
+              const y = (rowStart / 6) * 100 + gap / 2;
+              const height = ((rowEnd - rowStart) / 6) * 100 - gap;
+              position = {
+                x: parseFloat(x.toFixed(2)),
+                y: parseFloat(y.toFixed(2)),
+                width: parseFloat(Math.max(width, 5).toFixed(2)),
+                height: parseFloat(Math.max(height, 5).toFixed(2))
+              };
+            }
+          }
+
+          return {
+            id: cz.id,
+            name: cz.name,
+            theme: cz.theme || 'green',
+            color: cz.color || '',
+            iconType: cz.iconType || 'none',
+            hasTempSensor: cz.hasTempSensor,
+            tempApiUrl: cz.tempApiUrl || '',
+            hasHumidSensor: cz.hasHumidSensor,
+            humidApiUrl: cz.humidApiUrl || '',
+            position,
+            materials: cz.materials || ''
+          };
+        });
+      } else {
+        finalZones = extractedZones.map((ez, idx) => {
+          const zoneId = ez.id || `Z-${idx + 1}`;
+          return {
+            id: zoneId,
+            name: ez.name || 'Detected Zone',
+            theme: ez.theme || 'green',
+            color: ez.color || '',
+            iconType: ez.iconType || 'none',
+            hasTempSensor: !!ez.hasTempSensor,
+            tempApiUrl: ez.tempApiUrl || '',
+            hasHumidSensor: !!ez.hasHumidSensor,
+            humidApiUrl: ez.humidApiUrl || '',
+            position: ez.position || { x: 40, y: 40, width: 20, height: 20 },
+            materials: ez.materials || ''
+          };
+        });
       }
 
       const planData: CustomFloorPlan = {
         imageDataUrl,
         fileName: uploadImageFile.name,
         uploadedAt: new Date().toISOString(),
-        zones: extractedZones
+        zones: finalZones
       };
 
       let mapped: InteractiveZone[] = [];
-      if (extractedZones.length > 0) {
-        const mappedPromises = extractedZones.map(async z => {
-          const zoneId = z.id || `Z-${Math.random().toString(36).substring(2, 6)}`;
+      if (finalZones.length > 0) {
+        const mappedPromises = finalZones.map(async z => {
+          const zoneId = z.id;
           const zoneLetter = z.theme || (zoneId.charAt(0).match(/[A-E]/) ? zoneId.charAt(0) : 'C');
           let csvMappedMaterials = await parseAndPersistCsvMaterials(z.materials || '', zoneId, zoneLetter);
 
@@ -1635,15 +1706,15 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
 
           return {
             id: zoneId,
-            name: z.name || 'Detected Zone',
-            position: z.position || { x: 40, y: 40, width: 20, height: 20 },
-            hasTempSensor: !!z.hasTempSensor,
-            tempApiUrl: z.tempApiUrl || '',
-            hasHumidSensor: !!z.hasHumidSensor,
-            humidApiUrl: z.humidApiUrl || '',
-            theme: z.theme || 'green',
-            color: z.color || '',
-            iconType: z.iconType || 'none',
+            name: z.name,
+            position: z.position,
+            hasTempSensor: z.hasTempSensor,
+            tempApiUrl: z.tempApiUrl,
+            hasHumidSensor: z.hasHumidSensor,
+            humidApiUrl: z.humidApiUrl,
+            theme: z.theme,
+            color: z.color,
+            iconType: z.iconType,
             materials: csvMappedMaterials,
             isSetup: true
           };
@@ -2113,6 +2184,39 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
                     </div>
                   </div>
 
+                  {/* Telemetry Sensors */}
+                  {((selectedSlot as any).hasTempSensor || (selectedSlot as any).hasHumidSensor) ? (
+                    <div className="bg-stone-50 rounded-xl p-3.5 border border-stone-150 space-y-2">
+                      <h5 className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Telemetri Sensor</h5>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {(selectedSlot as any).hasTempSensor && (
+                          <div className="bg-white border border-stone-100 p-2.5 rounded-lg flex flex-col gap-1 shadow-sm">
+                            <span className="text-stone-400 font-semibold text-[10px] uppercase">Sensor Suhu</span>
+                            <div className="flex items-center gap-1.5 font-bold text-stone-750">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>Aktif</span>
+                            </div>
+                            <span className="text-[9px] text-stone-400 truncate mt-0.5" title={(selectedSlot as any).tempApiUrl}>
+                              {(selectedSlot as any).tempApiUrl}
+                            </span>
+                          </div>
+                        )}
+                        {(selectedSlot as any).hasHumidSensor && (
+                          <div className="bg-white border border-stone-100 p-2.5 rounded-lg flex flex-col gap-1 shadow-sm">
+                            <span className="text-stone-400 font-semibold text-[10px] uppercase">Sensor Kelembaban</span>
+                            <div className="flex items-center gap-1.5 font-bold text-stone-750">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>Aktif</span>
+                            </div>
+                            <span className="text-[9px] text-stone-400 truncate mt-0.5" title={(selectedSlot as any).humidApiUrl}>
+                              {(selectedSlot as any).humidApiUrl}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+
                   {/* Assigned Items */}
                   <div className="space-y-2 text-left">
                     <div className="flex items-center justify-between">
@@ -2417,16 +2521,16 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
                       <table className="w-full text-[10px] text-left">
                         <thead>
                           <tr className="bg-stone-50 border-b border-stone-100">
-                            {['id', 'name', 'theme', 'color', 'hasTempSensor', 'tempApiUrl', 'x', 'y', 'width', 'height'].map(col => (
+                            {['id', 'name', 'theme', 'color', 'hasTempSensor', 'tempApiUrl', 'hasHumidSensor', 'humidApiUrl', 'materials'].map(col => (
                               <th key={col} className="px-3 py-2 font-bold text-stone-600 whitespace-nowrap">{col}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-stone-50">
                           {[
-                            { id: 'A-1', name: 'LOADING DOCK', theme: 'blue', color: '', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', x: 2, y: 2, w: 90, h: 14 },
-                            { id: 'D-1', name: 'Cold Storage', theme: 'cyan', color: '#06B6D4', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', x: 74, y: 18, w: 24, h: 46 },
-                            { id: 'E-1', name: 'Hazardous Storage', theme: 'hazard', color: '#EF4444', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', x: 26, y: 82, w: 45, h: 14 },
+                            { id: 'A-1', name: 'LOADING DOCK', theme: 'blue', color: '', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', hasHumidSensor: 'false', humidApiUrl: '', materials: 'INV-001' },
+                            { id: 'D-1', name: 'Cold Storage', theme: 'cyan', color: '#06B6D4', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', hasHumidSensor: 'true', humidApiUrl: 'http://…/api/cold-chain', materials: 'INV-007;INV-008' },
+                            { id: 'E-1', name: 'Hazardous Storage', theme: 'hazard', color: '#EF4444', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', hasHumidSensor: 'false', humidApiUrl: '', materials: 'INV-006' },
                           ].map(row => (
                             <tr key={row.id} className="hover:bg-stone-50/60 transition-colors">
                               <td className="px-3 py-2 font-bold text-blue-700">{row.id}</td>
@@ -2435,10 +2539,9 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
                               <td className="px-3 py-2 text-stone-500">{row.color || '—'}</td>
                               <td className="px-3 py-2 text-emerald-600 font-semibold">{row.hasTempSensor}</td>
                               <td className="px-3 py-2 text-stone-400 font-mono text-[9px]">{row.tempApiUrl}</td>
-                              <td className="px-3 py-2 text-stone-500">{row.x}</td>
-                              <td className="px-3 py-2 text-stone-500">{row.y}</td>
-                              <td className="px-3 py-2 text-stone-500">{row.w}</td>
-                              <td className="px-3 py-2 text-stone-500">{row.h}</td>
+                              <td className="px-3 py-2 text-emerald-600 font-semibold">{row.hasHumidSensor}</td>
+                              <td className="px-3 py-2 text-stone-400 font-mono text-[9px]">{row.humidApiUrl || '—'}</td>
+                              <td className="px-3 py-2 text-stone-500">{row.materials || '—'}</td>
                             </tr>
                           ))}
                         </tbody>
