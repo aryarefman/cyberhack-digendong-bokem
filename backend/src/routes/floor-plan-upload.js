@@ -184,37 +184,10 @@ If you cannot identify any zones, return an empty array [].`;
 /**
  * Call Gemini API with model fallback, retry for 429, and JSON format enforcement.
  */
-async function getAvailableGeminiModels(apiKey) {
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const flashModels = (data.models || [])
-      .map(m => m.name?.replace('models/', ''))
-      .filter(name => name && name.includes('flash') && !name.includes('tts') && !name.includes('thinking'))
-      .sort((a, b) => {
-        // Prefer higher version numbers and non-lite first
-        const version = n => {
-          const m = n.match(/(\d+)\.(\d+)/);
-          return m ? parseFloat(`${m[1]}.${m[2]}`) : 0;
-        };
-        const diff = version(b) - version(a);
-        if (diff !== 0) return diff;
-        // prefer non-lite over lite
-        if (a.includes('lite') && !b.includes('lite')) return 1;
-        if (!a.includes('lite') && b.includes('lite')) return -1;
-        return 0;
-      });
-    return flashModels.length > 0 ? flashModels : null;
-  } catch {
-    return null;
-  }
-}
-
 async function callGeminiWithFallback(contents, generationConfig = {}, userApiKey) {
   const apiKey = getApiKey(userApiKey);
-  const discoveredModels = await getAvailableGeminiModels(apiKey);
-  const models = discoveredModels || ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+  // Restrict backend fallback to Gemini 2.5 models
+  const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
   console.log('Using Gemini models:', models);
   let lastError = null;
 
