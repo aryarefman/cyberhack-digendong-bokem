@@ -145,19 +145,19 @@ export default function FloorPlanPage() {
 
   const downloadCSVTemplate = () => {
     const csvContent = 
-      'id,name,theme,color,hasTempSensor,tempApiUrl,hasHumidSensor,humidApiUrl,materials\n' +
-      'A-1,LOADING DOCK,blue,,true,http://localhost:4000/api/cold-chain,false,,INV-001\n' +
-      'A-2,Equipment Set Up,blue,,false,,false,,\n' +
-      'B-1,Tray Setting 1,purple,,false,,false,,INV-003\n' +
-      'B-2,Tray Setting 2,purple,,false,,false,,\n' +
-      'D-1,Cold Storage Facility,cyan,#06B6D4,true,http://localhost:4000/api/cold-chain,true,http://localhost:4000/api/cold-chain,INV-007;INV-008\n' +
-      'C-1,Hot Extraction Room,warm,,false,,false,,INV-005\n' +
-      'C-3,Non-Production Machinery,green,,false,,false,,\n' +
-      'C-4,Locker Room,green,,false,,false,,\n' +
-      'C-5,QC & Lab Room,green,,false,,false,,\n' +
-      'C-2,Packaging & Shipping,green,,false,,false,,\n' +
-      'A-3,Receiving Area,blue,,false,,false,,\n' +
-      'E-1,Hazardous Material Storage,hazard,#EF4444,true,http://localhost:4000/api/cold-chain,false,,INV-006';
+      'id,name,theme,color,x,y,width,height,hasTempSensor,tempApiUrl,hasHumidSensor,humidApiUrl\n' +
+      'A-1,LOADING DOCK,blue,,0,0,100,16.7,true,http://localhost:4000/api/cold-chain,false,\n' +
+      'A-2,Equipment Set Up,blue,,0,16.7,25,50,false,,false,\n' +
+      'B-1,Tray Setting 1,purple,,25,16.7,25,16.7,false,,false,\n' +
+      'B-2,Tray Setting 2,purple,,50,16.7,25,16.7,false,,false,\n' +
+      'D-1,Cold Storage Facility,cyan,#06B6D4,75,16.7,25,50,true,http://localhost:4000/api/cold-chain,true,http://localhost:4000/api/cold-chain\n' +
+      'C-1,Hot Extraction Room,warm,,25,33.3,50,33.3,false,,false,\n' +
+      'C-3,Non-Production Machinery,green,,0,66.7,25,16.7,false,,false,\n' +
+      'C-4,Locker Room,green,,25,66.7,33.3,16.7,false,,false,\n' +
+      'C-5,QC & Lab Room,green,,58.3,66.7,16.7,16.7,false,,false,\n' +
+      'C-2,Packaging & Shipping,green,,75,66.7,25,33.3,false,,false,\n' +
+      'A-3,Receiving Area,blue,,0,83.3,25,16.7,false,,false,\n' +
+      'E-1,Hazardous Material Storage,hazard,#EF4444,25,83.3,50,16.7,true,http://localhost:4000/api/cold-chain,false,';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1369,7 +1369,7 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
     const name = row.name || `Zone ${id}`;
     const theme = row.theme || 'green';
     const color = row.color || '';
-    const iconType = row.icontype || row.icon || 'none';
+    const iconType = row.icontype || row.icon || undefined;
     const hasTempSensor = row.hastempsensor === 'true' || row.hastempsensor === '1' || row.hastempsensor === 'yes';
     const tempApiUrl = row.tempapiurl || '';
     const hasHumidSensor = row.hashumidsensor === 'true' || row.hashumidsensor === '1' || row.hashumidsensor === 'yes';
@@ -1556,9 +1556,12 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
           return;
         }
       } else {
-        // Image only (no PDF, CSV metadata parsed separately on frontend): send to backend for AI zone detection
+        // Image only or Image + CSV: send to backend for AI zone detection with guidance if CSV uploaded
         const formData = new FormData();
         formData.append('image', uploadImageFile);
+        if (csvZones.length > 0) {
+          formData.append('zoneList', JSON.stringify(csvZones.map(z => ({ id: z.id, name: z.name }))));
+        }
         
         try {
           const data = await api.postForm<{ success: boolean; zones: any[] }>('/floor-plan-upload', formData);
@@ -1584,85 +1587,73 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
           console.error('Backend floor plan zone detection error:', err);
           if (handleUploadError(err)) return;
 
-          if (csvZones.length === 0) {
-            // Otherwise fall back to upload-only
-            setUploadError('Layanan AI sedang tidak tersedia. Floor plan akan disimpan dalam mode upload-only tanpa deteksi zona otomatis. Anda dapat menambahkan zona secara manual setelah upload.');
-            
-            const planData: CustomFloorPlan = {
-              imageDataUrl,
-              fileName: uploadImageFile.name,
-              uploadedAt: new Date().toISOString(),
-              zones: []
-            };
-            setCustomFloorPlan(planData);
-            setInteractiveZones([]);
-            setFloors(prevFloors => {
-              const updated = prevFloors.map(f => f.id === activeFloorId ? { ...f, customFloorPlan: planData, interactiveZones: [] } : f);
-              localStorage.setItem('aromasys_floors', JSON.stringify(updated));
-              syncZonesToDBImmediate(updated);
-              return updated;
-            });
-            setShowUploadPanel(false);
-            setUploadImageFile(null);
-            setUploadImagePreview(null);
-            setUploadPdfFile(null);
-            setIsUploading(false);
-            setToast('Floor plan uploaded (mode upload-only — tambahkan zona secara manual).');
-            return;
-          } else {
-            setUploadError('Layanan AI sedang tidak tersedia. Menggunakan layout dari CSV template.');
-          }
+          setUploadError('Layanan AI sedang tidak tersedia. Floor plan akan disimpan dalam mode upload-only tanpa deteksi zona otomatis. Anda dapat menambahkan zona secara manual setelah upload.');
+          
+          const planData: CustomFloorPlan = {
+            imageDataUrl,
+            fileName: uploadImageFile.name,
+            uploadedAt: new Date().toISOString(),
+            zones: []
+          };
+          setCustomFloorPlan(planData);
+          setInteractiveZones([]);
+          setFloors(prevFloors => {
+            const updated = prevFloors.map(f => f.id === activeFloorId ? { ...f, customFloorPlan: planData, interactiveZones: [] } : f);
+            localStorage.setItem('aromasys_floors', JSON.stringify(updated));
+            syncZonesToDBImmediate(updated);
+            return updated;
+          });
+          setShowUploadPanel(false);
+          setUploadImageFile(null);
+          setUploadImagePreview(null);
+          setUploadPdfFile(null);
+          setIsUploading(false);
+          setToast('Floor plan uploaded (mode upload-only — tambahkan zona secara manual).');
+          return;
         }
       }
 
       let finalZones = [];
 
-      if (csvZones.length > 0) {
-        // Use CSV zones as the primary source, merging position from Gemini-detected zones where possible
-        finalZones = csvZones.map(cz => {
-          const match = extractedZones.find(ez =>
-            String(ez.id).toLowerCase() === String(cz.id).toLowerCase() ||
-            String(ez.name).toLowerCase() === String(cz.name).toLowerCase()
-          );
-
-          let position = { x: 40, y: 40, width: 20, height: 20 };
-          if (match && match.position) {
-            position = match.position;
-          } else {
-            const defaultRoom = ROOMS.find(r => r.id === cz.id);
-            if (defaultRoom) {
-              const { colStart, colEnd, rowStart, rowEnd } = parseGridColumnAndRow(defaultRoom.gridColumn, defaultRoom.gridRow);
-              const gap = 0.8;
-              const x = (colStart / 12) * 100 + gap / 2;
-              const width = ((colEnd - colStart) / 12) * 100 - gap;
-              const y = (rowStart / 6) * 100 + gap / 2;
-              const height = ((rowEnd - rowStart) / 6) * 100 - gap;
-              position = {
-                x: parseFloat(x.toFixed(2)),
-                y: parseFloat(y.toFixed(2)),
-                width: parseFloat(Math.max(width, 5).toFixed(2)),
-                height: parseFloat(Math.max(height, 5).toFixed(2))
-              };
-            }
-          }
-
-          return {
-            id: cz.id,
-            name: cz.name,
-            theme: cz.theme || 'green',
-            color: cz.color || '',
-            iconType: cz.iconType || 'none',
-            hasTempSensor: cz.hasTempSensor,
-            tempApiUrl: cz.tempApiUrl || '',
-            hasHumidSensor: cz.hasHumidSensor,
-            humidApiUrl: cz.humidApiUrl || '',
-            position,
-            materials: cz.materials || ''
-          };
-        });
-      } else {
+      if (extractedZones.length > 0) {
+        // Use Gemini-detected zones as the primary source of layout positions
         finalZones = extractedZones.map((ez, idx) => {
           const zoneId = ez.id || `Z-${idx + 1}`;
+
+          // Try to match with CSV metadata if uploaded (case-insensitive substring check)
+          const match = csvZones.find(cz => {
+            const ezId = String(ez.id).toLowerCase();
+            const czId = String(cz.id).toLowerCase();
+            const ezName = String(ez.name).toLowerCase();
+            const czName = String(cz.name).toLowerCase();
+            return (
+              ezId === czId ||
+              ezName === czName ||
+              ezName.includes(czName) ||
+              czName.includes(ezName) ||
+              ezId.includes(czId) ||
+              czId.includes(ezId)
+            );
+          });
+
+          if (match) {
+            return {
+              id: zoneId,
+              name: match.name || ez.name || 'Detected Zone',
+              theme: match.theme || ez.theme || 'green',
+              color: match.color || ez.color || '',
+              iconType: (match.iconType && match.iconType !== 'none') ? match.iconType : (ez.iconType || 'none'),
+              hasTempSensor: match.hasTempSensor,
+              tempApiUrl: match.tempApiUrl || '',
+              hasHumidSensor: match.hasHumidSensor,
+              humidApiUrl: match.humidApiUrl || '',
+              position: (match.x !== undefined && match.y !== undefined && match.width !== undefined && match.height !== undefined)
+                ? { x: match.x, y: match.y, width: match.width, height: match.height }
+                : (ez.position || { x: 40, y: 40, width: 20, height: 20 }),
+              materials: match.materials || ''
+            };
+          }
+
           return {
             id: zoneId,
             name: ez.name || 'Detected Zone',
@@ -1736,7 +1727,11 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
       setUploadImagePreview(null);
       setUploadPdfFile(null);
       setUploadError(null);
-      setToast(`Floor plan uploaded successfully!${extractedZones.length > 0 ? ` ${extractedZones.length} zones initialized from metadata.` : ''}`);
+      setToast(
+        extractedZones.length > 0
+          ? `Floor plan uploaded successfully! ${extractedZones.length} zones initialized from metadata.`
+          : 'Floor plan uploaded. Tidak ada zona otomatis yang terdeteksi dari gambar. Silakan tambahkan zona secara manual.'
+      );
       fetchInventory();
       fetchSlots();
     } catch {
@@ -2521,27 +2516,30 @@ function parseCSVContent(textContent: string): CSVParsedZone[] {
                       <table className="w-full text-[10px] text-left">
                         <thead>
                           <tr className="bg-stone-50 border-b border-stone-100">
-                            {['id', 'name', 'theme', 'color', 'hasTempSensor', 'tempApiUrl', 'hasHumidSensor', 'humidApiUrl', 'materials'].map(col => (
+                            {['id', 'name', 'theme', 'color', 'x', 'y', 'width', 'height', 'hasTempSensor', 'tempApiUrl', 'hasHumidSensor', 'humidApiUrl'].map(col => (
                               <th key={col} className="px-3 py-2 font-bold text-stone-600 whitespace-nowrap">{col}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-stone-50">
                           {[
-                            { id: 'A-1', name: 'LOADING DOCK', theme: 'blue', color: '', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', hasHumidSensor: 'false', humidApiUrl: '', materials: 'INV-001' },
-                            { id: 'D-1', name: 'Cold Storage', theme: 'cyan', color: '#06B6D4', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', hasHumidSensor: 'true', humidApiUrl: 'http://…/api/cold-chain', materials: 'INV-007;INV-008' },
-                            { id: 'E-1', name: 'Hazardous Storage', theme: 'hazard', color: '#EF4444', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', hasHumidSensor: 'false', humidApiUrl: '', materials: 'INV-006' },
+                            { id: 'A-1', name: 'LOADING DOCK', theme: 'blue', color: '', x: '0', y: '0', width: '100', height: '16.7', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', hasHumidSensor: 'false', humidApiUrl: '' },
+                            { id: 'D-1', name: 'Cold Storage', theme: 'cyan', color: '#06B6D4', x: '75', y: '16.7', width: '25', height: '50', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', hasHumidSensor: 'true', humidApiUrl: 'http://…/api/cold-chain' },
+                            { id: 'E-1', name: 'Hazardous Storage', theme: 'hazard', color: '#EF4444', x: '25', y: '83.3', width: '50', height: '16.7', hasTempSensor: 'true', tempApiUrl: 'http://…/api/cold-chain', hasHumidSensor: 'false', humidApiUrl: '' },
                           ].map(row => (
                             <tr key={row.id} className="hover:bg-stone-50/60 transition-colors">
                               <td className="px-3 py-2 font-bold text-blue-700">{row.id}</td>
                               <td className="px-3 py-2 font-semibold text-stone-800">{row.name}</td>
                               <td className="px-3 py-2 text-stone-500">{row.theme}</td>
                               <td className="px-3 py-2 text-stone-500">{row.color || '—'}</td>
+                              <td className="px-3 py-2 text-stone-700 font-semibold">{row.x}</td>
+                              <td className="px-3 py-2 text-stone-700 font-semibold">{row.y}</td>
+                              <td className="px-3 py-2 text-stone-700 font-semibold">{row.width}</td>
+                              <td className="px-3 py-2 text-stone-700 font-semibold">{row.height}</td>
                               <td className="px-3 py-2 text-emerald-600 font-semibold">{row.hasTempSensor}</td>
                               <td className="px-3 py-2 text-stone-400 font-mono text-[9px]">{row.tempApiUrl}</td>
                               <td className="px-3 py-2 text-emerald-600 font-semibold">{row.hasHumidSensor}</td>
                               <td className="px-3 py-2 text-stone-400 font-mono text-[9px]">{row.humidApiUrl || '—'}</td>
-                              <td className="px-3 py-2 text-stone-500">{row.materials || '—'}</td>
                             </tr>
                           ))}
                         </tbody>

@@ -693,6 +693,7 @@ Kembalikan HANYA JSON array.`;
           <button
             onClick={generateRecommendations}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#2C742F] text-white text-xs font-bold hover:bg-[#366306] transition-all shadow-sm active:scale-95"
+            suppressHydrationWarning={true}
           >
             <Sparkles className="w-3.5 h-3.5" />
             Generate with AI
@@ -724,6 +725,7 @@ Kembalikan HANYA JSON array.`;
           onClick={generateRecommendations}
           disabled={isLoading}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-stone-200 bg-white text-[10px] font-bold text-[#2C742F] hover:bg-stone-50 shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          suppressHydrationWarning={true}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           Refresh
@@ -753,6 +755,7 @@ Kembalikan HANYA JSON array.`;
                   onClick={() => handleApply(rec)}
                   disabled={applyingId === rec.id}
                   className="shrink-0 px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-full text-[9px] font-bold transition-all disabled:opacity-50"
+                  suppressHydrationWarning={true}
                 >
                   {applyingId === rec.id ? '...' : 'Fix'}
                 </button>
@@ -779,6 +782,7 @@ Kembalikan HANYA JSON array.`;
                     onClick={() => handleApply(rec)}
                     disabled={applyingId === rec.id}
                     className="mt-2 flex items-center gap-1 px-2.5 py-1 bg-[#2C742F]/10 hover:bg-[#2C742F]/20 text-[#2C742F] rounded-full text-[9px] font-bold transition-all disabled:opacity-50 active:scale-95"
+                    suppressHydrationWarning={true}
                   >
                     {applyingId === rec.id ? (
                       <RefreshCw className="w-3 h-3 animate-spin" />
